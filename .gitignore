@@ -1,7 +1,10 @@
-ompiled Object files, Static and Dynamic libs (Shared Objects)
+# Compiled Object files, Static and Dynamic libs (Shared Objects)
 *.o
 *.a
 *.so
+
+# Text editor artefacts
+*.swp
 
 # Folders
 _obj
