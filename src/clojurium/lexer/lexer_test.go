@@ -22,7 +22,9 @@ func TestNextToken(t *testing.T) {
             } else {
             	return false;
             }
-            
+
+						==
+						!=
             `
 
 	tests := []struct {
@@ -94,6 +96,8 @@ func TestNextToken(t *testing.T) {
 		{token.FALSE, "false"},
 		{token.SEMICOLON, ";"},
 		{token.RBRACE, "}"},
+		{token.EQ, "=="},
+		{token.NOT_EQ, "!="},
 		{token.EOF, ""},
 	}
 
