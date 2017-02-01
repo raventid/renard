@@ -1,3 +1,6 @@
+// Clojurium parser.
+// For statements parsing we use: Recursive descent parser
+// For expressions parsing we use: Top Down Operator Precedence (or: Pratt Parsing)
 package parser
 
 import (
