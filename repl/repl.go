@@ -2,9 +2,9 @@ package repl
 
 import (
 	"bufio"
-	"clojurium/lexer"
-	"clojurium/token"
 	"fmt"
+	"github.com/raventid/clojurium/lexer"
+	"github.com/raventid/clojurium/token"
 	"io"
 )
 

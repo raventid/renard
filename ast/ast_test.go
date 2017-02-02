@@ -1,7 +1,7 @@
 package ast
 
 import (
-	"clojurium/token"
+	"github.com/raventid/clojurium/token"
 	"testing"
 )
 

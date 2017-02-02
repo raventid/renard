@@ -1,8 +1,8 @@
 package parser
 
 import (
-	"clojurium/ast"
-	"clojurium/lexer"
+	"github.com/raventid/clojurium/ast"
+	"github.com/raventid/clojurium/lexer"
 	"testing"
 )
 

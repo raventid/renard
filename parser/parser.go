@@ -4,10 +4,10 @@
 package parser
 
 import (
-	"clojurium/ast"
-	"clojurium/lexer"
-	"clojurium/token"
 	"fmt"
+	"github.com/raventid/clojurium/ast"
+	"github.com/raventid/clojurium/lexer"
+	"github.com/raventid/clojurium/token"
 )
 
 const (

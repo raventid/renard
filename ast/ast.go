@@ -2,7 +2,7 @@ package ast
 
 import (
 	"bytes"
-	"clojurium/token"
+	"github.com/raventid/clojurium/token"
 )
 
 type Node interface {

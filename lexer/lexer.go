@@ -1,7 +1,7 @@
 package lexer
 
 import (
-	"clojurium/token"
+	"github.com/raventid/clojurium/token"
 )
 
 type Lexer struct {
