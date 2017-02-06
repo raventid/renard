@@ -52,6 +52,8 @@ func New(l *lexer.Lexer) *Parser {
 	p.prefixParseFns = make(map[token.TokenType]prefixParseFn)
 	p.registerPrefix(token.IDENT, p.parseIdentifier)
 	p.registerPrefix(token.INT, p.parseIntegerLiteral)
+	p.registerPrefix(token.BANG, p.parsePrefixExpression)
+	p.registerPrefix(token.MINUS, p.parsePrefixExpression)
 
 	return p
 }
@@ -103,6 +105,9 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 	prefix := p.prefixParseFns[p.curToken.Type]
 
 	if prefix == nil {
+		// If we do not have any function to parse current operator
+		// let's write this to errors and return nil
+		p.noPrefixParseFnError(p.curToken.Type)
 		return nil
 	}
 
@@ -110,6 +115,10 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 
 	return leftExp
 }
+
+//********************//
+// STATEMENTS PARSERS //
+//********************//
 
 // LET STATEMENT PARSING
 func (p *Parser) parseLetStatement() *ast.LetStatement {
@@ -160,7 +169,7 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 }
 
 //********************//
-// EXPRESSION PARSERS //
+// EXPRESSIONS PARSERS //
 //********************//
 
 // IDENTIFIER
@@ -184,7 +193,30 @@ func (p *Parser) parseIntegerLiteral() ast.Expression {
 	return lit
 }
 
-// COMMON FUNCTIONS
+// NO PREFIXED PARSER
+func (p *Parser) noPrefixParseFnError(t token.TokenType) {
+	msg := fmt.Sprintf("no prefix parse function for %s found", t)
+	p.errors = append(p.errors, msg)
+}
+
+// PREFIX EXPRESSIONS PARSER
+func (p *Parser) parsePrefixExpression() ast.Expression {
+	expression := &ast.PrefixExpression{
+		Token:    p.curToken,
+		Operator: p.curToken.Literal,
+	}
+
+	p.nextToken() // we advance cursor to parse next token
+
+	expression.Right = p.parseExpression(PREFIX) // let's write parsed token into Right of prefix expression
+
+	return expression
+}
+
+//********************//
+// HELPER FUNCTIONS   //
+//********************//
+
 func (p *Parser) curTokenIs(t token.TokenType) bool {
 	return p.curToken.Type == t
 }
