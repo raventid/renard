@@ -68,11 +68,11 @@ func TestReturnStatements(t *testing.T) {
 	for _, stmt := range program.Statements {
 		returnStmt, ok := stmt.(*ast.ReturnStatement)
 		if !ok {
-			t.Errorf("stmt not *ast.returnStatement. got=%d", stmt)
+			t.Errorf("stmt not *ast.returnStatement. got=%T", stmt)
 			continue
 		}
 		if returnStmt.TokenLiteral() != "return" {
-			t.Errorf("returnStmt.TokenLiteral is not a 'return', got %q", returnStmt.TokenLiteral)
+			t.Errorf("returnStmt.TokenLiteral is not a 'return', got %s", returnStmt.TokenLiteral())
 		}
 	}
 }
