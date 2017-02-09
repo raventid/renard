@@ -4,6 +4,12 @@ go:
    - 1.6
    - 1.7.x
    - master
+    
+before_install:
+   - go get github.com/mattn/goveralls
+
+script:
+  - $HOME/gopath/bin/goveralls -service=travis-ci
 
 sudo: false
 
