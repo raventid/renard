@@ -1,8 +1,8 @@
 package main
 
 import (
-	"clojurium/repl"
 	"fmt"
+	"github.com/raventid/clojurium/repl"
 	"os"
 	"os/user"
 )

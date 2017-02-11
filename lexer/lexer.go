@@ -1,14 +1,14 @@
 package lexer
 
 import (
-	"clojurium/token"
+	"github.com/raventid/clojurium/token"
 )
 
 type Lexer struct {
 	input        string
 	position     int  // curr pos in input(points to current char)
 	readPosition int  // after current char
-	ch           byte // char we are working with now
+	ch           byte // char we are working with right now
 }
 
 func New(input string) *Lexer {
