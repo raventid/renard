@@ -15,6 +15,6 @@ func main() {
 	}
 
 	fmt.Printf("Hello %s! Welcome to Clojurium language interactive environment.\n", user.Username)
-	fmt.Printf("You can start by reading documentation at Clojurium's web-site.\n")
+	fmt.Printf("You can start by reading documentation at Clojurium's web-site. https://raventid.github.io/clojurium/\n")
 	repl.Start(os.Stdin, os.Stdout)
 }
