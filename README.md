@@ -7,4 +7,4 @@ Simple programming language with first class functions.
 
 Roadmap:
 
-Version 0.1 - 9 january 2018
+Version 0.1 - 10 of june 2018
