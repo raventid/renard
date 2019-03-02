@@ -35,3 +35,11 @@ src/github.com/
 src/golang.org/
 src/gopkg.in/
 bin/
+
+
+#Added by cargo
+#
+#already existing elements are commented out
+
+/target
+**/*.rs.bk
