@@ -38,7 +38,7 @@ pub fn start() {
                 break;
             }
 
-            println!("{}", token.token_type);
+            println!("{:?}", token);
         }
     }
 }
