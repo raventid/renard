@@ -2,7 +2,7 @@ use crate::token;
 
 // TODO: Why byte? Maybe just use char and support unicode language out of box? wtp?
 #[derive(Default, Debug, Clone)]
-struct Lexer {
+pub struct Lexer {
     input: String,
     position: u32,
     read_position: u32,
@@ -10,7 +10,7 @@ struct Lexer {
 }
 
 impl Lexer {
-    fn new(input: String) -> Self {
+    pub fn new(input: String) -> Self {
         let mut lexer = Lexer {
             input,
             ..Default::default()
@@ -39,7 +39,7 @@ impl Lexer {
     }
 
     // TODO: rethink types. Current one are not very nice.
-    fn next_token(&mut self) -> token::Token {
+    pub fn next_token(&mut self) -> token::Token {
         self.skip_whitespace();
 
         let tok = match self.ch {
