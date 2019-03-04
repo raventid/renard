@@ -115,10 +115,6 @@ impl Lexer {
                 token_type: token::COMMA.to_string(),
                 literal: [self.ch].iter().map(|&c| c as char).collect::<String>(),
             },
-            b'+' => token::Token {
-                token_type: token::PLUS.to_string(),
-                literal: [self.ch].iter().map(|&c| c as char).collect::<String>(),
-            },
             b'{' => token::Token {
                 token_type: token::LBRACE.to_string(),
                 literal: [self.ch].iter().map(|&c| c as char).collect::<String>(),
