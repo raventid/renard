@@ -1,3 +1,4 @@
+use crate::ast;
 use std::collections::HashMap;
 
 type TokenType = String;
@@ -13,9 +14,9 @@ pub fn lookup_ident(ident: String) -> TokenType {
         ("fn".to_string(), FUNCTION.to_string()),
         ("let".to_string(), LET.to_string()),
         ("true".to_string(), TRUE.to_string()),
-        ("false".to_string(),  FALSE.to_string()),
-        ("if".to_string(),     IF.to_string()),
-        ("else".to_string(),   ELSE.to_string()),
+        ("false".to_string(), FALSE.to_string()),
+        ("if".to_string(), IF.to_string()),
+        ("else".to_string(), ELSE.to_string()),
         ("return".to_string(), RETURN.to_string()),
     ]
     .iter()
@@ -66,3 +67,59 @@ pub const FALSE: &str = "FALSE";
 pub const IF: &str = "IF";
 pub const ELSE: &str = "ELSE";
 pub const RETURN: &str = "RETURN";
+
+// <<--**********************-->>
+// Statements used by AST
+// <<--**********************-->>
+
+// TODO: Move this block to ast module. It's a bad place for it
+// to be here.
+pub enum Statements {
+    LetStatement(LetStatement),
+}
+
+impl ast::Node for Statements {
+    fn token_literal(&self) -> String {
+        match self {
+            Statements::LetStatement(ls) => ls.token_literal(),
+            _ => panic!("Node for some expression is not implemented yet"),
+        }
+    }
+}
+
+pub struct LetStatement {
+    pub token: Token,
+    pub name: Identifier,
+    pub value: String, // for now it's good enough :)
+    // pub value: Box<ast::Expression>, // interface
+}
+
+impl ast::Statement for LetStatement {
+    fn statement_node(&self) -> String {
+        "LetStatement".to_string()
+    }
+}
+
+impl ast::Node for LetStatement {
+    fn token_literal(&self) -> String {
+        self.token.literal.to_string()
+    }
+}
+
+pub struct Identifier {
+    pub token: Token,
+    pub value: String,
+}
+
+impl ast::Node for Identifier {
+    fn token_literal(&self) -> String {
+        self.token.literal.to_string()
+    }
+}
+
+// Use expression as a marker trait? And so I should use Statement as a marker trait?
+impl ast::Expression for Identifier {
+    fn expression_node(&self) -> String {
+        "Identifier".to_string()
+    }
+}
