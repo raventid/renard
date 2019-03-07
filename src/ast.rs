@@ -18,6 +18,7 @@ pub trait Expression : Node {
     }
 }
 
+#[derive(Debug)]
 pub struct Program {
     pub statements: Vec<Statements>,
 }

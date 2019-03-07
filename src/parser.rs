@@ -52,11 +52,10 @@ impl Parser {
     fn parse_let_statement(&mut self) -> Option<token::LetStatement> {
         let token = self.current_token.clone();
 
-        if !(self.peek_token.token_type == token::IDENT) {
+        if self.peek_token.token_type == token::IDENT {
             self.next_token();
-            return None;
         } else {
-            ()
+            return None;
         }
 
         let name = token::Identifier {
@@ -64,15 +63,14 @@ impl Parser {
             value: self.current_token.literal.clone(),
         };
 
-        if !(self.peek_token.token_type == token::ASSIGN) {
+        if self.peek_token.token_type == token::ASSIGN {
             self.next_token();
-            return None;
         } else {
-            ()
+            return None;
         }
 
         while !(self.current_token.token_type == token::SEMICOLON) {
-            self.next_token()
+            self.next_token() // skip to next statement in our program
         }
 
         Some(token::LetStatement {

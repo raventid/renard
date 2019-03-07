@@ -74,6 +74,7 @@ pub const RETURN: &str = "RETURN";
 
 // TODO: Move this block to ast module. It's a bad place for it
 // to be here.
+#[derive(Debug)]
 pub enum Statements {
     LetStatement(LetStatement),
 }
@@ -87,6 +88,7 @@ impl ast::Node for Statements {
     }
 }
 
+#[derive(Debug)]
 pub struct LetStatement {
     pub token: Token,
     pub name: Identifier,
@@ -106,6 +108,7 @@ impl ast::Node for LetStatement {
     }
 }
 
+#[derive(Debug)]
 pub struct Identifier {
     pub token: Token,
     pub value: String,
