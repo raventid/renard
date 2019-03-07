@@ -49,6 +49,10 @@ impl Parser {
                 Some(stmt) => Some(token::Statements::LetStatement(stmt)),
                 _ => None,
             },
+            token::RETURN => match self.parse_return_statement() {
+                Some(stmt) => Some(token::Statements::ReturnStatement(stmt)),
+                _ => None,
+            },
             _ => None,
         }
     }
@@ -90,7 +94,7 @@ impl Parser {
         // in this case we'll enter an infinite loop.
         // Doesn't next_token() protect us from this? Apparently - not.
         while !(self.current_token.token_type == token::SEMICOLON) {
-            self.next_token() // skip to next statement in our program
+            self.next_token(); // skip to next statement in our program
         }
 
         Some(token::LetStatement {
@@ -98,6 +102,21 @@ impl Parser {
             name,
             value: "dumb".to_string(),
         })
+    }
+
+    fn parse_return_statement(&mut self) -> Option<token::ReturnStatement> {
+        let statement = token::ReturnStatement {
+            token: self.current_token.clone(),
+            return_value: "dumb".to_string(), // How to better describe expression?
+        };
+
+        self.next_token();
+
+        while !(self.peek_token.token_type == token::SEMICOLON) {
+            self.next_token(); // skip everything till `;` for now
+        }
+
+        Some(statement)
     }
 }
 
