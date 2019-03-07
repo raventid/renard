@@ -169,6 +169,34 @@ mod tests {
         let lexer = lexer::Lexer::new(input);
         let mut parser = Parser::new(lexer);
 
+        match parser.parse_program() {
+            Some(program) => program,
+            None => panic!("Could not parse program"),
+        };
+
+        // We would like to accumulate every error in program
+        // and later render them to user.
+        if !parser.errors.is_empty() {
+            for error in parser.errors {
+                assert_eq!(
+                    "parser error: expected next token to be =, got INT instead",
+                    format!("parser error: {}", error)
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_return_statement() {
+        let input = r###"
+          return 1;
+          return 111;
+        "###
+        .to_string();
+
+        let lexer = lexer::Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+
         let program = match parser.parse_program() {
             Some(program) => program,
             None => panic!("Could not parse program"),
@@ -184,25 +212,21 @@ mod tests {
             panic!("A few parsing error encountered, see them above.");
         }
 
-        assert_eq!(program.statements.len(), 3);
+        assert_eq!(program.statements.len(), 2);
 
-        let expected = vec!["x".to_string(), "y".to_string(), "bebe".to_string()];
+        let expected = vec!["1".to_string(), "111".to_string()];
 
         program
             .statements
             .into_iter()
             .zip(expected.into_iter())
             .for_each(|(statement, expected_identifier)| {
-                assert_eq!(statement.token_literal(), "let");
+                assert_eq!(statement.token_literal(), "return");
 
-                let let_statement = match statement {
-                    Statements::LetStatement(statement) => statement,
-                    _ => panic!("I didn't expected anything besides `let` statement"),
+                let return_statement = match statement {
+                    Statements::ReturnStatement(statement) => statement,
+                    _ => panic!("I didn't expected anything besides `return` statement"),
                 };
-
-                assert_eq!(let_statement.name.value, expected_identifier);
-
-                assert_eq!(let_statement.name.token_literal(), expected_identifier);
             });
     }
 }

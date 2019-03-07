@@ -77,12 +77,14 @@ pub const RETURN: &str = "RETURN";
 #[derive(Debug)]
 pub enum Statements {
     LetStatement(LetStatement),
+    ReturnStatement(ReturnStatement),
 }
 
 impl ast::Node for Statements {
     fn token_literal(&self) -> String {
         match self {
             Statements::LetStatement(ls) => ls.token_literal(),
+            Statements::ReturnStatement(rs) => rs.token_literal(),
             _ => panic!("Node for some expression is not implemented yet"),
         }
     }
@@ -124,5 +126,21 @@ impl ast::Node for Identifier {
 impl ast::Expression for Identifier {
     fn expression_node(&self) -> String {
         "Identifier".to_string()
+    }
+}
+
+// Return statement grammar.
+//
+// return <expression>;
+#[derive(Debug)]
+pub struct ReturnStatement {
+    pub token: Token,
+    pub return_value: String, // not sure about String here, maybe introduce Expressions sum?
+                              // potentially we might overload String, we all love
+}
+
+impl ast::Node for ReturnStatement {
+    fn token_literal(&self) -> String {
+        self.token.literal.to_string()
     }
 }
