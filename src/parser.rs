@@ -2,20 +2,24 @@ use crate::ast;
 use crate::lexer;
 use crate::token;
 
+#[derive(Debug)]
 pub struct Parser {
     lexer: lexer::Lexer,
     current_token: token::Token,
     peek_token: token::Token,
+    pub errors: Vec<String>,
 }
 
 impl Parser {
     fn new(mut lexer: lexer::Lexer) -> Self {
         let current_token = lexer.next_token();
         let peek_token = lexer.next_token();
+        let errors = Vec::new();
         Self {
             lexer,
             current_token,
             peek_token,
+            errors,
         }
     }
 
@@ -49,6 +53,16 @@ impl Parser {
         }
     }
 
+    fn peek_error(&mut self, token: token::TokenType) {
+        let message = format!(
+            "expected next token to be {expected}, got {got} instead",
+            expected = token,
+            got = self.peek_token.token_type,
+        );
+
+        self.errors.push(message);
+    }
+
     fn parse_let_statement(&mut self) -> Option<token::LetStatement> {
         let token = self.current_token.clone();
 
@@ -69,6 +83,10 @@ impl Parser {
             return None;
         }
 
+        // TODO: It's a fragile design for now, this code might hang if we don't
+        // have a terminating semicolon and next token is token::EOF
+        // in this case we'll enter an infinite loop.
+        // Doesn't next_token() protect us from this? Apparently - not.
         while !(self.current_token.token_type == token::SEMICOLON) {
             self.next_token() // skip to next statement in our program
         }
@@ -93,7 +111,7 @@ mod tests {
         let input = r###"
           let x = 5;
           let y = 10;
-          let bebe = 101010
+          let bebe = 101010;
         "###
         .to_string();
 
@@ -104,6 +122,16 @@ mod tests {
             Some(program) => program,
             None => panic!("Could not parse program"),
         };
+
+        // We would like to accumulate every error in program
+        // and later render them to user.
+        if !parser.errors.is_empty() {
+            println!("Parser encountered {} errors", parser.errors.len());
+            for error in parser.errors {
+                println!("parser error: {}", error);
+            }
+            panic!("A few parsing error encountered, see them above.");
+        }
 
         dbg!(&program);
 

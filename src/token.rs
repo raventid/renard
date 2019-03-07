@@ -1,7 +1,7 @@
 use crate::ast;
 use std::collections::HashMap;
 
-type TokenType = String;
+pub type TokenType = String;
 
 #[derive(Debug, Clone)]
 pub struct Token {
