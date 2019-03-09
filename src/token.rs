@@ -1,4 +1,5 @@
 use crate::ast;
+use std::fmt;
 use std::collections::HashMap;
 
 pub type TokenType = String;
@@ -78,6 +79,7 @@ pub const RETURN: &str = "RETURN";
 pub enum Statements {
     LetStatement(LetStatement),
     ReturnStatement(ReturnStatement),
+    ExpressionStatement(ExpressionStatement),
 }
 
 impl ast::Node for Statements {
@@ -85,11 +87,25 @@ impl ast::Node for Statements {
         match self {
             Statements::LetStatement(ls) => ls.token_literal(),
             Statements::ReturnStatement(rs) => rs.token_literal(),
+            Statements::ExpressionStatement(es) => es.token_literal(),
             _ => panic!("Node for some expression is not implemented yet"),
         }
     }
 }
 
+impl fmt::Display for Statements {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            match self {
+                Statements::LetStatement(ls) => fmt::Display::fmt(ls, f),
+                Statements::ReturnStatement(rs) => fmt::Display::fmt(rs, f),
+                Statements::ExpressionStatement(es) => fmt::Display::fmt(es, f),
+                _ => panic!("Node for some expression is not implemented yet"),
+            }
+    }
+}
+
+// Let statement.
+// The way to introduce binding in Clojurium.
 #[derive(Debug)]
 pub struct LetStatement {
     pub token: Token,
@@ -107,6 +123,16 @@ impl ast::Statement for LetStatement {
 impl ast::Node for LetStatement {
     fn token_literal(&self) -> String {
         self.token.literal.to_string()
+    }
+}
+
+impl fmt::Display for LetStatement {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use crate::ast::Node;
+        match self.value.as_ref() {
+            "" => write!(f, "{} {} = ;", self.token_literal(), self.name.value), // empty string is extremly bad design decision, but we'll it so far.
+            _ => write!(f, "{} {} = {};", self.token_literal(), self.name.value, self.value),
+        }
     }
 }
 
@@ -142,5 +168,46 @@ pub struct ReturnStatement {
 impl ast::Node for ReturnStatement {
     fn token_literal(&self) -> String {
         self.token.literal.to_string()
+    }
+}
+
+impl fmt::Display for ReturnStatement {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use crate::ast::Node;
+        match self.return_value.as_ref() {
+            "" => write!(f, "{} ;", self.token_literal()), // empty string is extremly bad design decision, but we'll it so far.
+            _ => write!(f, "{} {};", self.token_literal(), self.return_value),
+        }
+    }
+}
+
+
+// Expression statement.
+//
+// The reason this statement exists is that in our
+// language we might have a statement with next structure:
+// `10 + 5;`
+// as you can see this just expression without any `let` binding.
+// To unify our grammar we'll use expression statement entity,
+// which represent this situation.
+#[derive(Debug)]
+pub struct ExpressionStatement {
+    pub token: Token,
+    expression: String, // move to expression later
+}
+
+impl ast::Node for ExpressionStatement {
+    fn token_literal(&self) -> String {
+        self.token.literal.to_string()
+    }
+}
+
+impl fmt::Display for ExpressionStatement {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use crate::ast::Node;
+        match self.expression.as_ref() {
+            "" => write!(f, "{}", ""),
+            _ => write!(f, "{}", self.expression)
+        }
     }
 }

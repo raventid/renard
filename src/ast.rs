@@ -1,3 +1,4 @@
+use std::fmt;
 use crate::token::Statements;
 
 pub trait Node {
@@ -30,5 +31,16 @@ impl Node for Program {
         } else {
             "".to_string()
         }
+    }
+}
+
+impl fmt::Display for Program {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for statement in self.statements.iter() {
+            fmt::Display::fmt(&statement, f)?;
+            writeln!(f, "{}", "");
+        }
+
+        Ok(())
     }
 }
