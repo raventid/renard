@@ -1,6 +1,30 @@
+use std::collections::HashMap;
+use std::fmt;
+
 use crate::ast;
 use crate::lexer;
 use crate::token;
+
+
+// For debug visualization I migth potentially use this approach
+// https://users.rust-lang.org/t/is-it-possible-to-implement-debug-for-fn-type/14824
+
+// Greeting to the master of functinal Rust - mighty @raventid
+type PrefixParseFnAlias = Fn () -> token::Expression;
+struct PrefixParseFn(Box<PrefixParseFnAlias>);
+impl fmt::Debug for PrefixParseFn {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", "prefix_parse_fn")
+    }
+}
+
+type InfixParseFnAlias = Fn (token::Expression) -> token::Expression;
+struct InfixParseFn(Box<InfixParseFnAlias>);
+impl fmt::Debug for InfixParseFn {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", "infix_parse_fn")
+    }
+}
 
 #[derive(Debug)]
 pub struct Parser {
@@ -8,6 +32,9 @@ pub struct Parser {
     current_token: token::Token,
     peek_token: token::Token,
     pub errors: Vec<String>,
+
+    prefix_parse_fns: HashMap<token::TokenType, PrefixParseFn>,
+    infix_parse_fns: HashMap<token::TokenType, InfixParseFn>,
 }
 
 impl Parser {
@@ -15,11 +42,15 @@ impl Parser {
         let current_token = lexer.next_token();
         let peek_token = lexer.next_token();
         let errors = Vec::new();
+        let prefix_parse_fns = HashMap::new();
+        let infix_parse_fns = HashMap::new();
         Self {
             lexer,
             current_token,
             peek_token,
             errors,
+            prefix_parse_fns,
+            infix_parse_fns,
         }
     }
 
@@ -117,6 +148,14 @@ impl Parser {
         }
 
         Some(statement)
+    }
+
+    fn register_prefix(&mut self, token_type: token::TokenType, f: Box<PrefixParseFnAlias>) {
+        self.prefix_parse_fns.insert(token_type, PrefixParseFn(f));
+    }
+
+    fn register_infix(&mut self, token_type: token::TokenType, f: Box<InfixParseFnAlias>) {
+        self.infix_parse_fns.insert(token_type, InfixParseFn(f));
     }
 }
 

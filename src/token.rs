@@ -82,6 +82,10 @@ pub enum Statements {
     ExpressionStatement(ExpressionStatement),
 }
 
+pub enum Expression {
+    Piparka,
+}
+
 impl ast::Node for Statements {
     fn token_literal(&self) -> String {
         match self {
