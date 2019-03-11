@@ -75,15 +75,18 @@ pub const RETURN: &str = "RETURN";
 
 // TODO: Move this block to ast module. It's a bad place for it
 // to be here.
+
+
+
+// <<--**********************-->>
+// STATEMENTS
+// <<--**********************-->>
+
 #[derive(Debug)]
 pub enum Statements {
     LetStatement(LetStatement),
     ReturnStatement(ReturnStatement),
     ExpressionStatement(ExpressionStatement),
-}
-
-pub enum Expression {
-    Piparka,
 }
 
 impl ast::Node for Statements {
@@ -92,7 +95,7 @@ impl ast::Node for Statements {
             Statements::LetStatement(ls) => ls.token_literal(),
             Statements::ReturnStatement(rs) => rs.token_literal(),
             Statements::ExpressionStatement(es) => es.token_literal(),
-            _ => panic!("Node for some expression is not implemented yet"),
+            _ => panic!("Node for some statement is not implemented yet"),
         }
     }
 }
@@ -103,8 +106,46 @@ impl fmt::Display for Statements {
                 Statements::LetStatement(ls) => fmt::Display::fmt(ls, f),
                 Statements::ReturnStatement(rs) => fmt::Display::fmt(rs, f),
                 Statements::ExpressionStatement(es) => fmt::Display::fmt(es, f),
-                _ => panic!("Node for some expression is not implemented yet"),
+                _ => panic!("Node for some statement is not implemented yet"),
             }
+    }
+}
+
+// <<--**********************-->>
+// EXPRESSIONS
+// <<--**********************-->>
+
+#[derive(Debug)]
+pub enum Expression {
+    Identifier(Identifier),
+}
+
+impl Expression {
+    // TODO: I'm not sure every  expression Node will have the same value
+    // field. So I might redesign this element later.
+    pub fn value(&self) -> String {
+        match self {
+            Expression::Identifier(i) => i.value.clone(),
+            _ => panic!("value() method for some expression is not implemented yet"),
+        }
+    }
+}
+
+impl ast::Node for Expression {
+    fn token_literal(&self) -> String {
+        match self {
+            Expression::Identifier(i) => i.token_literal(),
+            _ => panic!("Node for some expression is not implemented yet"),
+        }
+    }
+}
+
+impl fmt::Display for Expression {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Expression::Identifier(i) => fmt::Display::fmt(i, f),
+            _ => panic!("Display for some expression is not implemented yet"),
+        }
     }
 }
 
@@ -152,10 +193,16 @@ impl ast::Node for Identifier {
     }
 }
 
+impl fmt::Display for Identifier {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", "IDENTIFIER_DISPLAY_IMPLEMENTATION")
+    }
+}
+
 // Use expression as a marker trait? And so I should use Statement as a marker trait?
 impl ast::Expression for Identifier {
     fn expression_node(&self) -> String {
-        "Identifier".to_string()
+        "IDENTIFIER_EXPRESSION_IMPLEMENTATION".to_string()
     }
 }
 
@@ -197,7 +244,7 @@ impl fmt::Display for ReturnStatement {
 #[derive(Debug)]
 pub struct ExpressionStatement {
     pub token: Token,
-    expression: String, // move to expression later
+    pub expression: Expression, // move to expression later
 }
 
 impl ast::Node for ExpressionStatement {
@@ -208,10 +255,6 @@ impl ast::Node for ExpressionStatement {
 
 impl fmt::Display for ExpressionStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use crate::ast::Node;
-        match self.expression.as_ref() {
-            "" => write!(f, "{}", ""),
-            _ => write!(f, "{}", self.expression)
-        }
+        fmt::Display::fmt(&self.expression, f)
     }
 }

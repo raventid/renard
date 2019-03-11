@@ -287,4 +287,48 @@ mod tests {
                 };
             });
     }
+
+    #[test]
+    fn test_identifier_expression() {
+        let input = r###"
+          bebe;
+        "###.to_string();
+
+        let lexer = lexer::Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+
+        let program = match parser.parse_program() {
+            Some(program) => program,
+            None => panic!("Could not parse program"),
+        };
+
+        // We would like to accumulate every error in program
+        // and later render them to user.
+        if !parser.errors.is_empty() {
+            println!("Parser encountered {} errors", parser.errors.len());
+            for error in parser.errors {
+                println!("parser error: {}", error);
+            }
+            panic!("A few parsing error encountered, see them above.");
+        }
+
+        assert_eq!(program.statements.len(), 1);
+
+        program
+            .statements
+            .into_iter()
+            .for_each(|statement| {
+                let expression_statement = match statement {
+                    Statements::ExpressionStatement(statement) => statement,
+                    _ => panic!("I didn't expect something besides expression statement"),
+                };
+
+                let identifier = expression_statement.expression;
+                // TODO: Maybe pattern matching on concrete branch is better here
+                // then some general value() method.
+                // Anyway in control code I will use it the other way.
+                assert_eq!(identifier.value(), "bebe");
+                assert_eq!(identifier.token_literal(), "bebe");
+            })
+    }
 }
