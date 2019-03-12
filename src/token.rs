@@ -69,6 +69,15 @@ pub const IF: &str = "IF";
 pub const ELSE: &str = "ELSE";
 pub const RETURN: &str = "RETURN";
 
+// Precedences
+pub const LOWEST: u8 = 1;
+pub const EQUALS: u8 = 2; // ==
+pub const LESSGREATER: u8 = 3; // > or <
+pub const SUM: u8 = 4; // +
+pub const PRODUCT: u8 = 5; // *
+pub const PREFIX: u8 = 6; // -B or !B
+pub const CALL: u8 = 7; // do_something()
+
 // <<--**********************-->>
 // Statements used by AST
 // <<--**********************-->>
@@ -118,23 +127,31 @@ impl fmt::Display for Statements {
 #[derive(Debug)]
 pub enum Expression {
     Identifier(Identifier),
+    IntegerLiteral(IntegerLiteral),
 }
 
-impl Expression {
-    // TODO: I'm not sure every  expression Node will have the same value
-    // field. So I might redesign this element later.
-    pub fn value(&self) -> String {
-        match self {
-            Expression::Identifier(i) => i.value.clone(),
-            _ => panic!("value() method for some expression is not implemented yet"),
-        }
-    }
-}
+// impl Expression {
+//     // TODO: I'm not sure every  expression Node will have the same value
+//     // field. So I might redesign this element later.
+//     enum StringOrInteger {
+//         String,
+//         i32
+//     };
+
+//     pub fn value(&self) -> String or i32 {
+//         match self {
+//             Expression::Identifier(i) => i.value.clone(), // String
+//             Expression::IntegerLiteral(il) => il.value.clone().to_string(), // i32
+//             _ => panic!("value() method for some expression is not implemented yet"),
+//         }
+//     }
+// }
 
 impl ast::Node for Expression {
     fn token_literal(&self) -> String {
         match self {
             Expression::Identifier(i) => i.token_literal(),
+            Expression::IntegerLiteral(il) => il.token_literal(),
             _ => panic!("Node for some expression is not implemented yet"),
         }
     }
@@ -144,6 +161,7 @@ impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Expression::Identifier(i) => fmt::Display::fmt(i, f),
+            Expression::IntegerLiteral(il) => fmt::Display::fmt(il, f),
             _ => panic!("Display for some expression is not implemented yet"),
         }
     }
@@ -256,5 +274,26 @@ impl ast::Node for ExpressionStatement {
 impl fmt::Display for ExpressionStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&self.expression, f)
+    }
+}
+
+// Integer literal.
+//
+// Represent parsed integer number.
+#[derive(Debug)]
+pub struct IntegerLiteral {
+    pub token: Token,
+    pub value: i32,
+}
+
+impl ast::Node for IntegerLiteral {
+    fn token_literal(&self) -> String {
+        self.token.literal.to_string()
+    }
+}
+
+impl fmt::Display for IntegerLiteral {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.token.literal)
     }
 }
