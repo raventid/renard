@@ -45,6 +45,12 @@ impl LambdaParsers {
 
             })
         );
+
+
+        self.register_prefix(
+            token::INT.to_string(),
+            Box::new(Self::parse_int_literal)
+        )
     }
 
     fn register_prefix(&mut self, token_type: token::TokenType, f: Box<PrefixParseFnAlias>) {
@@ -59,6 +65,20 @@ impl LambdaParsers {
         token::Expression::Identifier(token::Identifier {
             token: parser.current_token.clone(),
             value: parser.current_token.literal.clone(),
+        })
+    }
+
+    fn parse_int_literal(parser: &Parser) -> token::Expression {
+        let to_be_integer = parser.current_token.literal.clone();
+
+        // TODO: This extremly bad
+        // Lambda parsers should bubble errors to parser.
+        // Parser should handle them gracefully.
+        let integer = to_be_integer.parse::<i32>().unwrap();
+
+        token::Expression::IntegerLiteral(token::IntegerLiteral {
+            token: parser.current_token.clone(),
+            value: integer,
         })
     }
 }
