@@ -9,7 +9,7 @@ use crate::token;
 // https://users.rust-lang.org/t/is-it-possible-to-implement-debug-for-fn-type/14824
 
 // Greeting to the master of functinal Rust - mighty @raventid
-type PrefixParseFnAlias = Fn(&Parser) -> token::Expression + 'static;
+type PrefixParseFnAlias = Fn(&mut Parser) -> token::Expression + 'static;
 
 struct PrefixParseFn(Box<PrefixParseFnAlias>);
 impl fmt::Debug for PrefixParseFn {
@@ -45,7 +45,9 @@ impl LambdaParsers {
             }),
         );
 
-        self.register_prefix(token::INT.to_string(), Box::new(Self::parse_int_literal))
+        self.register_prefix(token::INT.to_string(), Box::new(Self::parse_int_literal));
+        self.register_prefix(token::BANG.to_string(), Box::new(Self::parse_prefix_expression));
+        self.register_prefix(token::MINUS.to_string(), Box::new(Self::parse_prefix_expression));
     }
 
     fn register_prefix(&mut self, token_type: token::TokenType, f: Box<PrefixParseFnAlias>) {
@@ -56,14 +58,14 @@ impl LambdaParsers {
         self.infix_parse_fns.insert(token_type, InfixParseFn(f));
     }
 
-    fn parse_identifier(parser: &Parser) -> token::Expression {
+    fn parse_identifier(parser: &mut Parser) -> token::Expression {
         token::Expression::Identifier(token::Identifier {
             token: parser.current_token.clone(),
             value: parser.current_token.literal.clone(),
         })
     }
 
-    fn parse_int_literal(parser: &Parser) -> token::Expression {
+    fn parse_int_literal(parser: &mut Parser) -> token::Expression {
         let to_be_integer = parser.current_token.literal.clone();
 
         // TODO: This extremly bad
@@ -81,6 +83,19 @@ impl LambdaParsers {
             token: parser.current_token.clone(),
             value: integer,
         })
+    }
+
+    fn parse_prefix_expression(parser: &mut Parser) -> token::Expression {
+        let expression = match parser.parse_expression(token::PREFIX) {
+            Some(result) => result,
+            None => panic!("Can't parse parser.current_token = {}", parser.current_token.literal),
+        };
+
+        token::Expression::PrefixExpression(Box::new(token::PrefixExpression {
+            token: parser.current_token.clone(),
+            operator: parser.current_token.literal.clone(),
+            right: expression,
+        }))
     }
 }
 
@@ -234,15 +249,25 @@ impl Parser {
         Some(statement)
     }
 
-    fn parse_expression(&self, precedence: u8) -> Option<token::Expression> {
-        match self
+    fn parse_expression(&mut self, precedence: u8) -> Option<token::Expression> {
+        let prefix_function = self
             .lambda_parsers
             .prefix_parse_fns
-            .get(&self.current_token.token_type)
-        {
-            Some(PrefixParseFn(prefix_parse_fn)) => Some(prefix_parse_fn(&self)),
-            None => return None,
+            .get(&self.current_token.token_type.clone());
+
+        match prefix_function {
+            Some(PrefixParseFn(prefix_parse_fn)) => Some(prefix_parse_fn(self)),
+            None => {
+                // this step might be redundant, because we check the error above
+                self.register_no_prefix_parser_found(self.current_token.token_type.clone());
+                return None
+            },
         }
+    }
+
+    fn register_no_prefix_parser_found(&mut self, token_type: token::TokenType) {
+        let message = format!("no prefix parser found for {} token", token_type);
+        self.errors.push(message);
     }
 
     fn peek_error(&mut self, token: token::TokenType) {
@@ -480,10 +505,7 @@ mod tests {
     fn test_prefix_expressions() {
         let inputs = ["!10;".to_string(), "-101010;".to_string()];
 
-        let expected = vec![
-            ("!".to_string(), 10),
-            ("-".to_string(), 101010),
-        ];
+        let expected = vec![("!".to_string(), 10), ("-".to_string(), 101010)];
 
         // Iterate over every prefix expression and test it individualy
         inputs
