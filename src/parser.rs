@@ -69,6 +69,12 @@ impl LambdaParsers {
         // TODO: This extremly bad
         // Lambda parsers should bubble errors to parser.
         // Parser should handle them gracefully.
+        // For the future:
+        //
+        // enum ParserError {
+        //     FailedToReconiseIntegerLiteral(parse_int_error),
+        //     FailedToObtainSomeValue(some_error_message),
+        // }
         let integer = to_be_integer.parse::<i32>().unwrap();
 
         token::Expression::IntegerLiteral(token::IntegerLiteral {
@@ -109,20 +115,6 @@ impl Parser {
 
         parser
     }
-
-    // fn register_parsers(self) {
-    //     let parser = self.clone();
-    //     self.register_prefix(
-    //         token::IDENT.to_string(),
-    //         Box::new(move |parser| {
-    //             token::Expression::Identifier(token::Identifier {
-    //                 token: parser.current_token,
-    //                 value: parser.current_token.literal,
-    //             })
-
-    //         })
-    //     );
-    // }
 
     fn next_token(&mut self) {
         self.current_token = self.peek_token.clone();
@@ -231,7 +223,7 @@ impl Parser {
             token: self.current_token.clone(),
             expression: match self.parse_expression(token::LOWEST) {
                 Some(expression) => expression,
-                None => panic!("I do not expect that expression is empty in parse_identifier!"),
+                None => panic!("I don't know how to parse `{}`", self.current_token.literal),
             },
         };
 

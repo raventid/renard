@@ -253,7 +253,6 @@ impl fmt::Display for ReturnStatement {
     }
 }
 
-
 // Expression statement.
 //
 // The reason this statement exists is that in our
