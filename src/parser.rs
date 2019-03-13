@@ -245,13 +245,6 @@ impl Parser {
         }
     }
 
-    // fn parse_identifier(&self) -> token::Expression {
-    //     token::Expression::Identifier(token::Identifier {
-    //         token: self.current_token,
-    //         value: self.current_token.literal,
-    //     })
-    // }
-
     fn peek_error(&mut self, token: token::TokenType) {
         let message = format!(
             "expected next token to be {expected}, got {got} instead",
@@ -261,14 +254,6 @@ impl Parser {
 
         self.errors.push(message);
     }
-
-    // fn register_prefix(&mut self, token_type: token::TokenType, f: Box<PrefixParseFnAlias>) {
-    //     self.prefix_parse_fns.insert(token_type, PrefixParseFn(f));
-    // }
-
-    // fn register_infix(&mut self, token_type: token::TokenType, f: Box<InfixParseFnAlias>) {
-    //     self.infix_parse_fns.insert(token_type, InfixParseFn(f));
-    // }
 }
 
 #[cfg(test)]
