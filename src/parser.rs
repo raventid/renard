@@ -42,15 +42,10 @@ impl LambdaParsers {
                     token: parser.current_token.clone(),
                     value: parser.current_token.literal.clone(),
                 })
-
-            })
+            }),
         );
 
-
-        self.register_prefix(
-            token::INT.to_string(),
-            Box::new(Self::parse_int_literal)
-        )
+        self.register_prefix(token::INT.to_string(), Box::new(Self::parse_int_literal))
     }
 
     fn register_prefix(&mut self, token_type: token::TokenType, f: Box<PrefixParseFnAlias>) {
@@ -237,7 +232,7 @@ impl Parser {
             expression: match self.parse_expression(token::LOWEST) {
                 Some(expression) => expression,
                 None => panic!("I do not expect that expression is empty in parse_identifier!"),
-            }
+            },
         };
 
         if self.peek_token.token_type == token::SEMICOLON {
@@ -248,7 +243,11 @@ impl Parser {
     }
 
     fn parse_expression(&self, precedence: u8) -> Option<token::Expression> {
-        match self.lambda_parsers.prefix_parse_fns.get(&self.current_token.token_type) {
+        match self
+            .lambda_parsers
+            .prefix_parse_fns
+            .get(&self.current_token.token_type)
+        {
             Some(PrefixParseFn(prefix_parse_fn)) => Some(prefix_parse_fn(&self)),
             None => return None,
         }
@@ -285,8 +284,8 @@ mod tests {
     use crate::ast::Node;
     use crate::lexer;
     use crate::parser::Parser;
-    use crate::token::Statements;
     use crate::token::Expression;
+    use crate::token::Statements;
 
     #[test]
     fn test_let_statements() {
@@ -500,4 +499,64 @@ mod tests {
         })
     }
 
+    #[test]
+    fn test_prefix_expressions() {
+        let inputs = ["!10;".to_string(), "-101010;".to_string()];
+
+        let expected = vec![
+            ("!".to_string(), 10),
+            ("-".to_string(), 101010),
+        ];
+
+        // Iterate over every prefix expression and test it individualy
+        inputs
+            .into_iter()
+            .zip(expected.into_iter())
+            .for_each(|(input, token_pair)| {
+                let lexer = lexer::Lexer::new(input.to_string());
+                let mut parser = Parser::new(lexer);
+
+                let program = match parser.parse_program() {
+                    Some(program) => program,
+                    None => panic!("Could not parse program"),
+                };
+
+                // We would like to accumulate every error in program
+                // and later render them to user.
+                if !parser.errors.is_empty() {
+                    println!("Parser encountered {} errors", parser.errors.len());
+                    for error in parser.errors {
+                        println!("parser error: {}", error);
+                    }
+                    panic!("A few parsing error encountered, see them above.");
+                }
+
+                assert_eq!(program.statements.len(), 1);
+
+                let expression_statement = match &program.statements[0] {
+                    Statements::ExpressionStatement(statement) => statement,
+                    _ => panic!("I didn't expected anything besides `expression` statement"),
+                };
+
+                let prefix_expression = match &expression_statement.expression {
+                    Expression::PrefixExpression(pe) => pe,
+                    _ => panic!("I've expected prefix expression here - sorry"),
+                };
+
+                let operator = token_pair.0;
+                let integer = token_pair.1;
+
+                assert_eq!(prefix_expression.operator, operator);
+                assert_integer_literal(&prefix_expression.right, integer);
+            });
+    }
+
+    fn assert_integer_literal(expression: &Expression, expected: i32) {
+        let integer = match expression {
+            Expression::IntegerLiteral(il) => il,
+            _ => panic!("fail in assert_integer_literal"),
+        };
+
+        assert_eq!(integer.value, expected);
+    }
 }

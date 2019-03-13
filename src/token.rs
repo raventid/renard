@@ -128,6 +128,7 @@ impl fmt::Display for Statements {
 pub enum Expression {
     Identifier(Identifier),
     IntegerLiteral(IntegerLiteral),
+    PrefixExpression(Box<PrefixExpression>), // This expression contains recursion
 }
 
 // impl Expression {
@@ -152,6 +153,7 @@ impl ast::Node for Expression {
         match self {
             Expression::Identifier(i) => i.token_literal(),
             Expression::IntegerLiteral(il) => il.token_literal(),
+            Expression::PrefixExpression(pe) => pe.token_literal(),
             _ => panic!("Node for some expression is not implemented yet"),
         }
     }
@@ -162,6 +164,7 @@ impl fmt::Display for Expression {
         match self {
             Expression::Identifier(i) => fmt::Display::fmt(i, f),
             Expression::IntegerLiteral(il) => fmt::Display::fmt(il, f),
+            Expression::PrefixExpression(pe) => fmt::Display::fmt(pe, f),
             _ => panic!("Display for some expression is not implemented yet"),
         }
     }
@@ -226,7 +229,7 @@ impl ast::Expression for Identifier {
 
 // Return statement grammar.
 //
-// return <expression>;
+// Structure: `return <expression>`;
 #[derive(Debug)]
 pub struct ReturnStatement {
     pub token: Token,
@@ -259,6 +262,8 @@ impl fmt::Display for ReturnStatement {
 // as you can see this just expression without any `let` binding.
 // To unify our grammar we'll use expression statement entity,
 // which represent this situation.
+//
+// Structure: `10 + 5`
 #[derive(Debug)]
 pub struct ExpressionStatement {
     pub token: Token,
@@ -280,6 +285,8 @@ impl fmt::Display for ExpressionStatement {
 // Integer literal.
 //
 // Represent parsed integer number.
+//
+// Structure: `5`
 #[derive(Debug)]
 pub struct IntegerLiteral {
     pub token: Token,
@@ -295,5 +302,29 @@ impl ast::Node for IntegerLiteral {
 impl fmt::Display for IntegerLiteral {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.token.literal)
+    }
+}
+
+// Prefix expression.
+//
+// Represent any prefix expression like `!` or `-`.
+//
+// Structure: `!5`
+#[derive(Debug)]
+pub struct PrefixExpression {
+    pub token: Token,
+    pub operator: String,
+    pub right: Expression,
+}
+
+impl ast::Node for PrefixExpression {
+    fn token_literal(&self) -> String {
+        self.token.literal.to_string()
+    }
+}
+
+impl fmt::Display for PrefixExpression {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({} {})", self.operator, self.right)
     }
 }
