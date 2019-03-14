@@ -7,6 +7,9 @@ use crate::ast;
 use crate::lexer;
 use crate::token;
 
+// TODO: Consider using Pratt terminology like `nuds` and `leds`
+// Not sure it's very comprehensible, though...
+
 // Priority table for different fixity operations
 lazy_static! {
     static ref PRECEDENCES: HashMap<token::TokenType, u8> = [
