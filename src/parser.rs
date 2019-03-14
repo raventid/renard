@@ -1,9 +1,36 @@
 use std::collections::HashMap;
 use std::fmt;
 
+use lazy_static::lazy_static;
+
 use crate::ast;
 use crate::lexer;
 use crate::token;
+
+// Priority table for different fixity operations
+lazy_static! {
+    static ref PRECEDENCES: HashMap<token::TokenType, u8> = [
+        (token::EQ.to_string(), token::EQUALS),
+        (token::NOT_EQ.to_string(), token::EQUALS),
+        (token::LT.to_string(), token::LESSGREATER),
+        (token::GT.to_string(), token::LESSGREATER),
+        (token::PLUS.to_string(), token::SUM),
+        (token::MINUS.to_string(), token::SUM),
+        (token::SLASH.to_string(), token::PRODUCT),
+        (token::ASTERISK.to_string(), token::PRODUCT),
+    ]
+    .iter()
+    .cloned()
+    .collect();
+}
+
+// TODO: type alias for precedence instead of u8?
+fn precedence_by_token_type(token_type: &token::TokenType) -> u8 {
+    match PRECEDENCES.get(token_type) {
+        Some(precedence) => *precedence,
+        None => token::LOWEST,
+    }
+}
 
 // For debug visualization I migth potentially use this approach
 // https://users.rust-lang.org/t/is-it-possible-to-implement-debug-for-fn-type/14824
@@ -18,7 +45,7 @@ impl fmt::Debug for PrefixParseFn {
     }
 }
 
-type InfixParseFnAlias = Fn(&Parser, token::Expression) -> token::Expression + 'static;
+type InfixParseFnAlias = Fn(&mut Parser, token::Expression) -> token::Expression + 'static;
 
 struct InfixParseFn(Box<InfixParseFnAlias>);
 impl fmt::Debug for InfixParseFn {
@@ -35,6 +62,7 @@ struct LambdaParsers {
 
 impl LambdaParsers {
     fn register_parsers(&mut self) {
+        // PREFIX PARSERS
         self.register_prefix(
             token::IDENT.to_string(),
             Box::new(|parser| {
@@ -46,8 +74,50 @@ impl LambdaParsers {
         );
 
         self.register_prefix(token::INT.to_string(), Box::new(Self::parse_int_literal));
-        self.register_prefix(token::BANG.to_string(), Box::new(Self::parse_prefix_expression));
-        self.register_prefix(token::MINUS.to_string(), Box::new(Self::parse_prefix_expression));
+
+        self.register_prefix(
+            token::BANG.to_string(),
+            Box::new(Self::parse_prefix_expression),
+        );
+
+        self.register_prefix(
+            token::MINUS.to_string(),
+            Box::new(Self::parse_prefix_expression),
+        );
+
+        // INFIX PARSERS
+        self.register_infix(
+            token::PLUS.to_string(),
+            Box::new(Self::parse_infix_expression),
+        );
+        self.register_infix(
+            token::MINUS.to_string(),
+            Box::new(Self::parse_infix_expression),
+        );
+        self.register_infix(
+            token::SLASH.to_string(),
+            Box::new(Self::parse_infix_expression),
+        );
+        self.register_infix(
+            token::ASTERISK.to_string(),
+            Box::new(Self::parse_infix_expression),
+        );
+        self.register_infix(
+            token::EQ.to_string(),
+            Box::new(Self::parse_infix_expression),
+        );
+        self.register_infix(
+            token::NOT_EQ.to_string(),
+            Box::new(Self::parse_infix_expression),
+        );
+        self.register_infix(
+            token::LT.to_string(),
+            Box::new(Self::parse_infix_expression),
+        );
+        self.register_infix(
+            token::GT.to_string(),
+            Box::new(Self::parse_infix_expression),
+        );
     }
 
     fn register_prefix(&mut self, token_type: token::TokenType, f: Box<PrefixParseFnAlias>) {
@@ -86,15 +156,68 @@ impl LambdaParsers {
     }
 
     fn parse_prefix_expression(parser: &mut Parser) -> token::Expression {
-        let expression = match parser.parse_expression(token::PREFIX) {
+        let mut lambda_parsers = LambdaParsers {
+            prefix_parse_fns: HashMap::new(),
+            infix_parse_fns: HashMap::new(),
+        };
+
+        lambda_parsers.register_parsers();
+
+        // We have to extract current token and operator
+        // Because we'll move to next_token now.
+        // To call parse_expression and get `right` expression.
+        let token = parser.current_token.clone();
+        let operator = parser.current_token.literal.clone();
+
+        dbg!(&parser);
+        parser.next_token();
+
+        // If we enter `parse_expression()` here without `next_token()`
+        // we enter the endless loop, followed by stack overflow.
+        // parse_expression() -> parse_prefix_expression() -> parse_expression()
+        let expression = match parser.parse_expression(&lambda_parsers, token::PREFIX) {
             Some(result) => result,
-            None => panic!("Can't parse parser.current_token = {}", parser.current_token.literal),
+            None => panic!(
+                "Can't parse parser.current_token = {}",
+                parser.current_token.literal
+            ),
         };
 
         token::Expression::PrefixExpression(Box::new(token::PrefixExpression {
-            token: parser.current_token.clone(),
-            operator: parser.current_token.literal.clone(),
+            token,
+            operator,
             right: expression,
+        }))
+    }
+
+    fn parse_infix_expression(parser: &mut Parser, left: token::Expression) -> token::Expression {
+        // TODO: Reinitialization of parser here and in the `parse_prefix_expression`
+        // Should move this initialization somewhere and use link everywhere else.
+        let mut lambda_parsers = LambdaParsers {
+            prefix_parse_fns: HashMap::new(),
+            infix_parse_fns: HashMap::new(),
+        };
+
+        lambda_parsers.register_parsers();
+
+        let token = parser.current_token.clone();
+        let operator = parser.current_token.literal.clone();
+
+        let precedence = precedence_by_token_type(&token.token_type);
+
+        parser.next_token();
+
+        let right = match parser.parse_expression(&lambda_parsers, precedence) {
+            Some(parsed_expression) => parsed_expression,
+            None => panic!("Cannot find infix parser for {:?}", token),
+        };
+
+        // TODO: improve syntax with box-patterns?
+        token::Expression::InfixExpression(Box::new(token::InfixExpression {
+            token,
+            left,
+            operator,
+            right,
         }))
     }
 }
@@ -105,7 +228,6 @@ pub struct Parser {
     current_token: token::Token,
     peek_token: token::Token,
     pub errors: Vec<String>,
-    lambda_parsers: LambdaParsers,
 }
 
 impl Parser {
@@ -113,22 +235,13 @@ impl Parser {
         let current_token = lexer.next_token();
         let peek_token = lexer.next_token();
         let errors = Vec::new();
-        let lambda_parsers = LambdaParsers {
-            prefix_parse_fns: HashMap::new(),
-            infix_parse_fns: HashMap::new(),
-        };
 
-        let mut parser = Self {
+        Self {
             lexer,
             current_token,
             peek_token,
             errors,
-            lambda_parsers,
-        };
-
-        parser.lambda_parsers.register_parsers();
-
-        parser
+        }
     }
 
     fn next_token(&mut self) {
@@ -136,12 +249,15 @@ impl Parser {
         self.peek_token = self.lexer.next_token();
     }
 
-    pub fn parse_program(&mut self) -> Option<ast::Program> {
+    // TODO: Current attempt. Move link to LambdaParsers to every function.
+    // To avoid double borrowing of self in case of mutual recursive
+    // calls.
+    pub fn parse_program(&mut self, lambda_parsers: &LambdaParsers) -> Option<ast::Program> {
         let mut program = ast::Program {
             statements: Vec::new(),
         };
         while self.current_token.token_type != token::EOF {
-            let statement = self.parse_statement();
+            let statement = self.parse_statement(lambda_parsers);
             match statement {
                 Some(stmt) => program.statements.push(stmt),
                 _ => (), // Just ignore that case
@@ -151,7 +267,7 @@ impl Parser {
         Some(program)
     }
 
-    fn parse_statement(&mut self) -> Option<token::Statements> {
+    fn parse_statement(&mut self, lambda_parsers: &LambdaParsers) -> Option<token::Statements> {
         dbg!(&self);
         match self.current_token.token_type.as_ref() {
             token::LET => match self.parse_let_statement() {
@@ -165,7 +281,7 @@ impl Parser {
             // If we did not encounter any `let` or `return` it might've happened that
             // we've encountered another type of statement.
             // The last one in our language - expresion statement.
-            _ => match self.parse_expression_statement() {
+            _ => match self.parse_expression_statement(lambda_parsers) {
                 Some(stmt) => Some(token::Statements::ExpressionStatement(stmt)),
                 _ => None,
             },
@@ -233,14 +349,19 @@ impl Parser {
         Some(statement)
     }
 
-    fn parse_expression_statement(&mut self) -> Option<token::ExpressionStatement> {
+    fn parse_expression_statement(
+        &mut self,
+        lambda_parsers: &LambdaParsers,
+    ) -> Option<token::ExpressionStatement> {
         let statement = token::ExpressionStatement {
             token: self.current_token.clone(),
-            expression: match self.parse_expression(token::LOWEST) {
+            expression: match self.parse_expression(lambda_parsers, token::LOWEST) {
                 Some(expression) => expression,
                 None => panic!("I don't know how to parse `{}`", self.current_token.literal),
             },
         };
+
+        dbg!(&statement);
 
         if self.peek_token.token_type == token::SEMICOLON {
             self.next_token();
@@ -249,20 +370,43 @@ impl Parser {
         Some(statement)
     }
 
-    fn parse_expression(&mut self, precedence: u8) -> Option<token::Expression> {
-        let prefix_function = self
-            .lambda_parsers
+    fn parse_expression(
+        &mut self,
+        lambda_parsers: &LambdaParsers,
+        precedence: u8,
+    ) -> Option<token::Expression> {
+        let prefix_function = lambda_parsers
             .prefix_parse_fns
             .get(&self.current_token.token_type.clone());
 
-        match prefix_function {
-            Some(PrefixParseFn(prefix_parse_fn)) => Some(prefix_parse_fn(self)),
+        dbg!(&self);
+
+        let mut left = match prefix_function {
+            Some(PrefixParseFn(prefix_parse_fn)) => prefix_parse_fn(self),
             None => {
                 // this step might be redundant, because we check the error above
                 self.register_no_prefix_parser_found(self.current_token.token_type.clone());
-                return None
-            },
+                return None;
+            }
+        };
+
+        while !(self.peek_token.token_type == token::SEMICOLON)
+            && (precedence < precedence_by_token_type(&self.peek_token.token_type))
+        {
+            let infix_function = lambda_parsers
+                .infix_parse_fns
+                .get(&self.peek_token.token_type.clone());
+
+            self.next_token();
+
+            // update left
+            left = match infix_function {
+                Some(InfixParseFn(infix_parse_fn)) => infix_parse_fn(self, left.clone()),
+                None => panic!("Cannot find infix function for {:?}", self.peek_token),
+            };
         }
+
+        Some(left)
     }
 
     fn register_no_prefix_parser_found(&mut self, token_type: token::TokenType) {
@@ -285,9 +429,11 @@ impl Parser {
 mod tests {
     use crate::ast::Node;
     use crate::lexer;
+    use crate::parser::LambdaParsers;
     use crate::parser::Parser;
     use crate::token::Expression;
     use crate::token::Statements;
+    use std::collections::HashMap;
 
     #[test]
     fn test_let_statements() {
@@ -301,7 +447,14 @@ mod tests {
         let lexer = lexer::Lexer::new(input);
         let mut parser = Parser::new(lexer);
 
-        let program = match parser.parse_program() {
+        let mut lambda_parsers = LambdaParsers {
+            prefix_parse_fns: HashMap::new(),
+            infix_parse_fns: HashMap::new(),
+        };
+
+        lambda_parsers.register_parsers();
+
+        let program = match parser.parse_program(&lambda_parsers) {
             Some(program) => program,
             None => panic!("Could not parse program"),
         };
@@ -350,7 +503,14 @@ mod tests {
         let lexer = lexer::Lexer::new(input);
         let mut parser = Parser::new(lexer);
 
-        match parser.parse_program() {
+        let mut lambda_parsers = LambdaParsers {
+            prefix_parse_fns: HashMap::new(),
+            infix_parse_fns: HashMap::new(),
+        };
+
+        lambda_parsers.register_parsers();
+
+        match parser.parse_program(&lambda_parsers) {
             Some(program) => program,
             None => panic!("Could not parse program"),
         };
@@ -378,7 +538,14 @@ mod tests {
         let lexer = lexer::Lexer::new(input);
         let mut parser = Parser::new(lexer);
 
-        let program = match parser.parse_program() {
+        let mut lambda_parsers = LambdaParsers {
+            prefix_parse_fns: HashMap::new(),
+            infix_parse_fns: HashMap::new(),
+        };
+
+        lambda_parsers.register_parsers();
+
+        let program = match parser.parse_program(&lambda_parsers) {
             Some(program) => program,
             None => panic!("Could not parse program"),
         };
@@ -421,7 +588,14 @@ mod tests {
         let lexer = lexer::Lexer::new(input);
         let mut parser = Parser::new(lexer);
 
-        let program = match parser.parse_program() {
+        let mut lambda_parsers = LambdaParsers {
+            prefix_parse_fns: HashMap::new(),
+            infix_parse_fns: HashMap::new(),
+        };
+
+        lambda_parsers.register_parsers();
+
+        let program = match parser.parse_program(&lambda_parsers) {
             Some(program) => program,
             None => panic!("Could not parse program"),
         };
@@ -466,7 +640,14 @@ mod tests {
         let lexer = lexer::Lexer::new(input);
         let mut parser = Parser::new(lexer);
 
-        let program = match parser.parse_program() {
+        let mut lambda_parsers = LambdaParsers {
+            prefix_parse_fns: HashMap::new(),
+            infix_parse_fns: HashMap::new(),
+        };
+
+        lambda_parsers.register_parsers();
+
+        let program = match parser.parse_program(&lambda_parsers) {
             Some(program) => program,
             None => panic!("Could not parse program"),
         };
@@ -515,7 +696,14 @@ mod tests {
                 let lexer = lexer::Lexer::new(input.to_string());
                 let mut parser = Parser::new(lexer);
 
-                let program = match parser.parse_program() {
+                let mut lambda_parsers = LambdaParsers {
+                    prefix_parse_fns: HashMap::new(),
+                    infix_parse_fns: HashMap::new(),
+                };
+
+                lambda_parsers.register_parsers();
+
+                let program = match parser.parse_program(&lambda_parsers) {
                     Some(program) => program,
                     None => panic!("Could not parse program"),
                 };
@@ -550,6 +738,78 @@ mod tests {
             });
     }
 
+    #[test]
+    fn test_infix_expressions() {
+        let inputs = [
+            "1 + 1;".to_string(),
+            "1 - 1;".to_string(),
+            "1 * 1;".to_string(),
+            "1 / 1;".to_string(),
+            "1 > 1;".to_string(),
+            "1 < 1;".to_string(),
+            "1 == 1;".to_string(),
+            "1 != 1;".to_string(),
+        ];
+
+        let expected = vec![
+            (1, "+".to_string(), 1),
+            (1, "-".to_string(), 1),
+            (1, "*".to_string(), 1),
+            (1, "/".to_string(), 1),
+            (1, ">".to_string(), 1),
+            (1, "<".to_string(), 1),
+            (1, "==".to_string(), 1),
+            (1, "!=".to_string(), 1),
+        ];
+
+        // Iterate over every prefix expression and test it individualy
+        inputs.into_iter().zip(expected.into_iter()).for_each(
+            |(input, (left_integer, operator, right_integer))| {
+                let lexer = lexer::Lexer::new(input.to_string());
+                let mut parser = Parser::new(lexer);
+
+                let mut lambda_parsers = LambdaParsers {
+                    prefix_parse_fns: HashMap::new(),
+                    infix_parse_fns: HashMap::new(),
+                };
+
+                lambda_parsers.register_parsers();
+
+                let program = match parser.parse_program(&lambda_parsers) {
+                    Some(program) => program,
+                    None => panic!("Could not parse program"),
+                };
+
+                // We would like to accumulate every error in program
+                // and later render them to user.
+                if !parser.errors.is_empty() {
+                    println!("Parser encountered {} errors", parser.errors.len());
+                    for error in parser.errors {
+                        println!("parser error: {}", error);
+                    }
+                    panic!("A few parsing error encountered, see them above.");
+                }
+
+                assert_eq!(program.statements.len(), 1);
+
+                let expression_statement = match &program.statements[0] {
+                    Statements::ExpressionStatement(statement) => statement,
+                    _ => panic!("I didn't expected anything besides `expression` statement"),
+                };
+
+                let infix_expression = match &expression_statement.expression {
+                    Expression::InfixExpression(ie) => ie,
+                    _ => panic!("I've expected infix expression here - sorry"),
+                };
+
+                assert_integer_literal(&infix_expression.left, left_integer);
+                assert_eq!(infix_expression.operator, operator);
+                assert_integer_literal(&infix_expression.right, right_integer);
+            },
+        );
+    }
+
+    // <<-- HELPER ASSERTIONS -->>
     fn assert_integer_literal(expression: &Expression, expected: i32) {
         let integer = match expression {
             Expression::IntegerLiteral(il) => il,

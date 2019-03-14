@@ -124,29 +124,13 @@ impl fmt::Display for Statements {
 // EXPRESSIONS
 // <<--**********************-->>
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expression {
     Identifier(Identifier),
     IntegerLiteral(IntegerLiteral),
     PrefixExpression(Box<PrefixExpression>), // This expression contains recursion
+    InfixExpression(Box<InfixExpression>), // Same as previous
 }
-
-// impl Expression {
-//     // TODO: I'm not sure every  expression Node will have the same value
-//     // field. So I might redesign this element later.
-//     enum StringOrInteger {
-//         String,
-//         i32
-//     };
-
-//     pub fn value(&self) -> String or i32 {
-//         match self {
-//             Expression::Identifier(i) => i.value.clone(), // String
-//             Expression::IntegerLiteral(il) => il.value.clone().to_string(), // i32
-//             _ => panic!("value() method for some expression is not implemented yet"),
-//         }
-//     }
-// }
 
 impl ast::Node for Expression {
     fn token_literal(&self) -> String {
@@ -154,7 +138,7 @@ impl ast::Node for Expression {
             Expression::Identifier(i) => i.token_literal(),
             Expression::IntegerLiteral(il) => il.token_literal(),
             Expression::PrefixExpression(pe) => pe.token_literal(),
-            _ => panic!("Node for some expression is not implemented yet"),
+            Expression::InfixExpression(ie) => ie.token_literal(),
         }
     }
 }
@@ -165,14 +149,14 @@ impl fmt::Display for Expression {
             Expression::Identifier(i) => fmt::Display::fmt(i, f),
             Expression::IntegerLiteral(il) => fmt::Display::fmt(il, f),
             Expression::PrefixExpression(pe) => fmt::Display::fmt(pe, f),
-            _ => panic!("Display for some expression is not implemented yet"),
+            Expression::InfixExpression(ie) => fmt::Display::fmt(ie, f),
         }
     }
 }
 
 // Let statement.
 // The way to introduce binding in Clojurium.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LetStatement {
     pub token: Token,
     pub name: Identifier,
@@ -202,7 +186,7 @@ impl fmt::Display for LetStatement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Identifier {
     pub token: Token,
     pub value: String,
@@ -286,7 +270,7 @@ impl fmt::Display for ExpressionStatement {
 // Represent parsed integer number.
 //
 // Structure: `5`
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IntegerLiteral {
     pub token: Token,
     pub value: i32,
@@ -309,7 +293,7 @@ impl fmt::Display for IntegerLiteral {
 // Represent any prefix expression like `!` or `-`.
 //
 // Structure: `!5`
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PrefixExpression {
     pub token: Token,
     pub operator: String,
@@ -325,5 +309,30 @@ impl ast::Node for PrefixExpression {
 impl fmt::Display for PrefixExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "({} {})", self.operator, self.right)
+    }
+}
+
+// Infix expression
+//
+// Represents any infix expression like `"Julian" + "Pokrovsky"`
+//
+// Structure: `<expression> <infix operator> <expression>`
+#[derive(Debug, Clone)]
+pub struct InfixExpression {
+    pub token: Token,
+    pub left: Expression,
+    pub operator: String,
+    pub right: Expression,
+}
+
+impl ast::Node for InfixExpression {
+    fn token_literal(&self) -> String {
+        self.token.literal.to_string()
+    }
+}
+
+impl fmt::Display for InfixExpression {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({} {} {})", self.left, self.operator, self.right)
     }
 }
