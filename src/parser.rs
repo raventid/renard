@@ -88,6 +88,16 @@ impl LambdaParsers {
             Box::new(Self::parse_prefix_expression),
         );
 
+        self.register_prefix(
+            token::TRUE.to_string(),
+            Box::new(Self::parse_boolean),
+        );
+
+        self.register_prefix(
+            token::FALSE.to_string(),
+            Box::new(Self::parse_boolean),
+        );
+
         // INFIX PARSERS
         self.register_infix(
             token::PLUS.to_string(),
@@ -162,6 +172,17 @@ impl LambdaParsers {
         token::Expression::IntegerLiteral(token::IntegerLiteral {
             token: parser.current_token.clone(),
             value: integer,
+        })
+    }
+
+    fn parse_boolean(parser: &mut Parser) -> token::Expression {
+        // TODO: extract?
+        // fn (parser: &Parser) cur_token_is(t: token::TokenType) -> bool { p.cur_token.type == t }
+        let boolean_value = parser.current_token.token_type == token::TRUE;
+
+        token::Expression::Boolean(token::Boolean {
+            token: parser.current_token.clone(),
+            value: boolean_value,
         })
     }
 
@@ -819,6 +840,58 @@ mod tests {
                 assert_integer_literal(&infix_expression.right, right_integer);
             },
         );
+    }
+
+    #[test]
+    fn test_boolean_expressions() {
+        let inputs = ["true;".to_string(), "false;".to_string()];
+
+        let expected = vec![true, false];
+
+        // Iterate over every prefix expression and test it individualy
+        inputs
+            .into_iter()
+            .zip(expected.into_iter())
+            .for_each(|(input, boolean_value)| {
+                let lexer = lexer::Lexer::new(input.to_string());
+                let mut parser = Parser::new(lexer);
+
+                let mut lambda_parsers = LambdaParsers {
+                    prefix_parse_fns: HashMap::new(),
+                    infix_parse_fns: HashMap::new(),
+                };
+
+                lambda_parsers.register_parsers();
+
+                let program = match parser.parse_program(&lambda_parsers) {
+                    Some(program) => program,
+                    None => panic!("Could not parse program"),
+                };
+
+                // We would like to accumulate every error in program
+                // and later render them to user.
+                if !parser.errors.is_empty() {
+                    println!("Parser encountered {} errors", parser.errors.len());
+                    for error in parser.errors {
+                        println!("parser error: {}", error);
+                    }
+                    panic!("A few parsing error encountered, see them above.");
+                }
+
+                assert_eq!(program.statements.len(), 1);
+
+                let expression_statement = match &program.statements[0] {
+                    Statements::ExpressionStatement(statement) => statement,
+                    _ => panic!("I didn't expected anything besides `expression` statement"),
+                };
+
+                let boolean_expression = match &expression_statement.expression {
+                    Expression::Boolean(b) => b,
+                    _ => panic!("I've expected boolean expression here - sorry"),
+                };
+
+                assert_eq!(boolean_expression.value, boolean_value);
+            });
     }
 
     // <<-- HELPER ASSERTIONS -->>
