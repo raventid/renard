@@ -93,30 +93,37 @@ impl LambdaParsers {
             token::PLUS.to_string(),
             Box::new(Self::parse_infix_expression),
         );
+
         self.register_infix(
             token::MINUS.to_string(),
             Box::new(Self::parse_infix_expression),
         );
+
         self.register_infix(
             token::SLASH.to_string(),
             Box::new(Self::parse_infix_expression),
         );
+
         self.register_infix(
             token::ASTERISK.to_string(),
             Box::new(Self::parse_infix_expression),
         );
+
         self.register_infix(
             token::EQ.to_string(),
             Box::new(Self::parse_infix_expression),
         );
+
         self.register_infix(
             token::NOT_EQ.to_string(),
             Box::new(Self::parse_infix_expression),
         );
+
         self.register_infix(
             token::LT.to_string(),
             Box::new(Self::parse_infix_expression),
         );
+
         self.register_infix(
             token::GT.to_string(),
             Box::new(Self::parse_infix_expression),
@@ -400,6 +407,8 @@ impl Parser {
                 .infix_parse_fns
                 .get(&self.peek_token.token_type.clone());
 
+            // change cursor position before calling infix_parse_fn
+            // call it with new position
             self.next_token();
 
             // update left
