@@ -207,13 +207,6 @@ impl fmt::Display for Identifier {
     }
 }
 
-// Use expression as a marker trait? And so I should use Statement as a marker trait?
-impl ast::Expression for Identifier {
-    fn expression_node(&self) -> String {
-        "IDENTIFIER_EXPRESSION_IMPLEMENTATION".to_string()
-    }
-}
-
 // Return statement grammar.
 //
 // Structure: `return <expression>`;
