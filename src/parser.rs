@@ -344,8 +344,26 @@ impl LambdaParsers {
 
         let consequence = Self::parse_block_statement(parser);
 
-        // For now
-        let alternative = None;
+        let alternative = if parser.peek_token.token_type == token::ELSE {
+            parser.next_token(); // we found else! next token, pls!
+
+            // This block is the same as one above
+            // We should find LBRACE or panic! (we should not panic actually)
+            if parser.peek_token.token_type != token::LBRACE {
+                panic!(
+                    "I've expected opening `{{`, but got {}",
+                    parser.peek_token.token_type
+                );
+            };
+
+            // next token is `{`, everything is fine, set cursor on it
+            parser.next_token();
+
+            Some(Self::parse_block_statement(parser))
+
+        } else {
+            None
+        };
 
         token::Expression::IfExpression(Box::new(token::IfExpression {
             token,
@@ -1185,9 +1203,9 @@ mod tests {
             // Test that we've correctly parsed condition (it might be any expression)
             test_infix_expression(
                 &if_expression.condition,
-                ExpectedAssertLiteral::S("x".to_string()),
+                ExpectedAssertLiteral::S("pirozhenka".to_string()),
                 "<".to_string(),
-                ExpectedAssertLiteral::S("y".to_string()),
+                ExpectedAssertLiteral::S("bulochka".to_string()),
             );
 
             assert_eq!(if_expression.consequence.statements.len(), 1);
@@ -1197,7 +1215,7 @@ mod tests {
                 _ => panic!("tried to extract expression statement from consequence and failed"),
             };
 
-            assert_identifier(&consequence.expression, "x".to_string());
+            assert_identifier(&consequence.expression, "bulochka".to_string());
 
             let alternative = match &if_expression.alternative {
                 Some(block) => match &block.statements[0] {
