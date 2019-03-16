@@ -91,7 +91,7 @@ pub const CALL: u8 = 7; // do_something()
 // STATEMENTS
 // <<--**********************-->>
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Statements {
     LetStatement(LetStatement),
     ReturnStatement(ReturnStatement),
@@ -131,6 +131,7 @@ pub enum Expression {
     PrefixExpression(Box<PrefixExpression>), // This expression contains recursion
     InfixExpression(Box<InfixExpression>), // Same as previous
     Boolean(Boolean),
+    IfExpression(Box<IfExpression>),
 }
 
 impl ast::Node for Expression {
@@ -141,6 +142,7 @@ impl ast::Node for Expression {
             Expression::PrefixExpression(pe) => pe.token_literal(),
             Expression::InfixExpression(ie) => ie.token_literal(),
             Expression::Boolean(b) => b.token_literal(),
+            Expression::IfExpression(ie) => ie.token_literal(),
         }
     }
 }
@@ -153,6 +155,7 @@ impl fmt::Display for Expression {
             Expression::PrefixExpression(pe) => fmt::Display::fmt(pe, f),
             Expression::InfixExpression(ie) => fmt::Display::fmt(ie, f),
             Expression::Boolean(b) => fmt::Display::fmt(b, f),
+            Expression::IfExpression(ie) => fmt::Display::fmt(ie, f),
         }
     }
 }
@@ -210,7 +213,7 @@ impl fmt::Display for Identifier {
 // Return statement grammar.
 //
 // Structure: `return <expression>`;
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ReturnStatement {
     pub token: Token,
     pub return_value: String, // not sure about String here, maybe introduce Expressions sum?
@@ -243,7 +246,7 @@ impl fmt::Display for ReturnStatement {
 // which represent this situation.
 //
 // Structure: `10 + 5`
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ExpressionStatement {
     pub token: Token,
     pub expression: Expression, // move to expression later
@@ -353,5 +356,56 @@ impl ast::Node for Boolean {
 impl fmt::Display for Boolean {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.token.literal)
+    }
+}
+
+// If expression
+//
+// Example: `if (user_is_your_friend) { say_czesc() } else { say_dzien_dobry() };`
+//
+// Structure: if (<condition>) <consequence> else <alternative>
+#[derive(Debug, Clone)]
+pub struct IfExpression {
+    pub token: Token,
+    pub condition: Expression,
+    pub consequence: BlockStatement,
+    pub alternative: Option<BlockStatement>,
+}
+
+impl ast::Node for IfExpression {
+    fn token_literal(&self) -> String {
+        self.token.literal.to_string()
+    }
+}
+
+impl fmt::Display for IfExpression {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self.alternative.clone() {
+            Some(alternative) => write!(f, "if {} {} else {}", self.condition, self.consequence, alternative),
+            None => write!(f, "if {} {}", self.condition, self.consequence),
+        }
+    }
+}
+
+// Internal statement representation designed to work with IfExpression
+#[derive(Debug, Clone)]
+pub struct BlockStatement {
+    pub token: Token,
+    pub statements: Vec<Statements>,
+}
+
+impl ast::Node for BlockStatement {
+    fn token_literal(&self) -> String {
+        self.token.literal.to_string()
+    }
+}
+
+impl fmt::Display for BlockStatement {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for statement in self.statements.clone() {
+            write!(f, "{}", statement);
+        }
+
+        Ok(())
     }
 }

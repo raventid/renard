@@ -100,6 +100,11 @@ impl LambdaParsers {
             Box::new(Self::parse_grouped_expressions),
         );
 
+        self.register_prefix(
+            token::IF.to_string(),
+            Box::new(Self::parse_if_expression),
+        );
+
         // INFIX PARSERS
         self.register_infix(
             token::PLUS.to_string(),
@@ -271,16 +276,113 @@ impl LambdaParsers {
             None => panic!("Cannot find parser for {:?}", parser.current_token),
         };
 
+        // TODO: move to smth like expect_peek()? which returns result
+        // instead of panic!? Result is logged in panic.
         if parser.peek_token.token_type != token::RPAREN {
             // TODO: Rework function to properly handle this case.
             // Transofrm this to parser error.
-            panic!("I've expected `)`, but got {}", parser.peek_token.token_type);
+            panic!(
+                "I've expected `)`, but got {}",
+                parser.peek_token.token_type
+            );
         } else {
             // it's `)` token, skip it, we already parced expression in `(...)`
             parser.next_token();
         }
 
         expression
+    }
+
+    #[trace]
+    fn parse_if_expression(parser: &mut Parser) -> token::Expression {
+        // TODO: Reinitialization of parser here and in the `parse_prefix_expression`
+        // Should move this initialization somewhere and use link everywhere else.
+        let mut lambda_parsers = LambdaParsers {
+            prefix_parse_fns: HashMap::new(),
+            infix_parse_fns: HashMap::new(),
+        };
+        lambda_parsers.register_parsers();
+
+        let token = parser.current_token.clone();
+
+        if parser.peek_token.token_type != token::LPAREN {
+            panic!(
+                "I've expected `(`, but got {}",
+                parser.peek_token.token_type
+            );
+        };
+        parser.next_token(); // set cursor to `(`
+
+        parser.next_token(); // skip `(`
+
+        // I should find the best place to record errors.
+        // Use Result instead of Option. Log result in Parser { errors }.
+        let condition = match parser.parse_expression(&lambda_parsers, token::LOWEST) {
+            Some(c) => c,
+            _ => panic!("failed to parse some condition"),
+        };
+
+        if parser.peek_token.token_type != token::RPAREN {
+            panic!(
+                "I've expected closing `)`, but got {}",
+                parser.peek_token.token_type
+            );
+        };
+
+        // next token is `)`, everything is fine, skip it
+        parser.next_token();
+
+        if parser.peek_token.token_type != token::LBRACE {
+            panic!(
+                "I've expected opening `{{`, but got {}",
+                parser.peek_token.token_type
+            );
+        };
+
+        // next token is `{`, everything is fine, skip it
+        parser.next_token();
+
+        let consequence = Self::parse_block_statement(parser);
+
+        // For now
+        let alternative = None;
+
+        token::Expression::IfExpression(Box::new(token::IfExpression {
+            token,
+            condition,
+            consequence,
+            alternative,
+        }))
+    }
+
+    #[trace]
+    fn parse_block_statement(parser: &mut Parser) -> token::BlockStatement {
+        // TODO: Reinitialization of parser here and in the `parse_prefix_expression`
+        // Should move this initialization somewhere and use link everywhere else.
+        let mut lambda_parsers = LambdaParsers {
+            prefix_parse_fns: HashMap::new(),
+            infix_parse_fns: HashMap::new(),
+        };
+        lambda_parsers.register_parsers();
+
+        let token = parser.current_token.clone();
+        let mut statements = Vec::new();
+
+        // current token is `{` skip it
+        parser.next_token();
+
+        while parser.current_token.token_type != token::RBRACE
+            && parser.current_token.token_type != token::EOF
+        {
+            let statement = match parser.parse_statement(&lambda_parsers) {
+                Some(s) => s,
+                None => panic!("useless panic one more time, failed to parse if block"),
+            };
+            statements.push(statement);
+            parser.next_token();
+        }
+
+        token::BlockStatement { token, statements }
     }
 }
 
@@ -934,7 +1036,47 @@ mod tests {
         ];
 
         // Iterate over every prefix expression and test it individualy
-        inputs.into_iter().zip(expected.into_iter()).for_each(|(input, expected)| {
+        inputs
+            .into_iter()
+            .zip(expected.into_iter())
+            .for_each(|(input, expected)| {
+                let lexer = lexer::Lexer::new(input.to_string());
+                let mut parser = Parser::new(lexer);
+
+                let mut lambda_parsers = LambdaParsers {
+                    prefix_parse_fns: HashMap::new(),
+                    infix_parse_fns: HashMap::new(),
+                };
+
+                lambda_parsers.register_parsers();
+
+                let program = match parser.parse_program(&lambda_parsers) {
+                    Some(program) => program,
+                    None => panic!("Could not parse program"),
+                };
+
+                // We would like to accumulate every error in program
+                // and later render them to user.
+                if !parser.errors.is_empty() {
+                    println!("Parser encountered {} errors", parser.errors.len());
+                    for error in parser.errors {
+                        println!("parser error: {}", error);
+                    }
+                    panic!("A few parsing error encountered, see them above.");
+                }
+
+                // This and a couple of next tests will be run with
+                // stringification in mind. Like this assertion:
+                assert_eq!(program.to_string(), *expected);
+            });
+    }
+
+    #[test]
+    fn test_if_then_expression() {
+        let inputs = ["if (pirozhenka < bulochka) { bulochka }".to_string()];
+
+        // Iterate over every prefix expression and test it individualy
+        inputs.into_iter().for_each(|input| {
             let lexer = lexer::Lexer::new(input.to_string());
             let mut parser = Parser::new(lexer);
 
@@ -954,19 +1096,124 @@ mod tests {
             // and later render them to user.
             if !parser.errors.is_empty() {
                 println!("Parser encountered {} errors", parser.errors.len());
+
                 for error in parser.errors {
                     println!("parser error: {}", error);
                 }
+
                 panic!("A few parsing error encountered, see them above.");
             }
 
-            // This and a couple of next tests will be run with
-            // stringification in mind. Like this assertion:
-            assert_eq!(program.to_string(), *expected);
+            assert_eq!(program.statements.len(), 1);
+
+            let if_statement = match &program.statements[0] {
+                Statements::ExpressionStatement(statement) => statement,
+                _ => panic!("I didn't expected anything besides `expression` statement"),
+            };
+
+            let if_expression = match &if_statement.expression {
+                Expression::IfExpression(b) => b,
+                _ => panic!("I've expected IF expression here - sorry"),
+            };
+
+            // Test that we've correctly parsed condition (it might be any expression)
+            test_infix_expression(
+                &if_expression.condition,
+                ExpectedAssertLiteral::S("pirozhenka".to_string()),
+                "<".to_string(),
+                ExpectedAssertLiteral::S("bulochka".to_string()),
+            );
+
+            assert_eq!(if_expression.consequence.statements.len(), 1);
+
+            let consequence = match &if_expression.consequence.statements[0] {
+                Statements::ExpressionStatement(c) => c,
+                _ => panic!("tried to extract expression statement from consequence and failed"),
+            };
+
+            assert_identifier(&consequence.expression, "bulochka".to_string());
+
+            assert!(if_expression.alternative.is_none());
         });
     }
 
+    #[test]
+    fn test_if_then_else_expression() {
+        let inputs = ["if (pirozhenka < bulochka) { bulochka } else { pirozhenka }".to_string()];
+
+        // Iterate over every prefix expression and test it individualy
+        inputs.into_iter().for_each(|input| {
+            let lexer = lexer::Lexer::new(input.to_string());
+            let mut parser = Parser::new(lexer);
+
+            let mut lambda_parsers = LambdaParsers {
+                prefix_parse_fns: HashMap::new(),
+                infix_parse_fns: HashMap::new(),
+            };
+
+            lambda_parsers.register_parsers();
+
+            let program = match parser.parse_program(&lambda_parsers) {
+                Some(program) => program,
+                None => panic!("Could not parse program"),
+            };
+
+            // We would like to accumulate every error in program
+            // and later render them to user.
+            if !parser.errors.is_empty() {
+                println!("Parser encountered {} errors", parser.errors.len());
+
+                for error in parser.errors {
+                    println!("parser error: {}", error);
+                }
+
+                panic!("A few parsing error encountered, see them above.");
+            }
+
+            assert_eq!(program.statements.len(), 1);
+
+            let if_statement = match &program.statements[0] {
+                Statements::ExpressionStatement(statement) => statement,
+                _ => panic!("I didn't expected anything besides `expression` statement"),
+            };
+
+            let if_expression = match &if_statement.expression {
+                Expression::IfExpression(b) => b,
+                _ => panic!("I've expected IF expression here - sorry"),
+            };
+
+            // Test that we've correctly parsed condition (it might be any expression)
+            test_infix_expression(
+                &if_expression.condition,
+                ExpectedAssertLiteral::S("x".to_string()),
+                "<".to_string(),
+                ExpectedAssertLiteral::S("y".to_string()),
+            );
+
+            assert_eq!(if_expression.consequence.statements.len(), 1);
+
+            let consequence = match &if_expression.consequence.statements[0] {
+                Statements::ExpressionStatement(c) => c,
+                _ => panic!("tried to extract expression statement from consequence and failed"),
+            };
+
+            assert_identifier(&consequence.expression, "x".to_string());
+
+            let alternative = match &if_expression.alternative {
+                Some(block) => match &block.statements[0] {
+                    Statements::ExpressionStatement(c) => c,
+                    _ => {
+                        panic!("tried to extract expression statement from alternative and failed")
+                    }
+                },
+                None => panic!("failed to parse block"),
+            };
+
+            assert_identifier(&alternative.expression, "pirozhenka".to_string());
+        });
+    }
     // <<-- HELPER ASSERTIONS -->>
+
     fn assert_integer_literal(expression: &Expression, expected: i32) {
         let integer = match expression {
             Expression::IntegerLiteral(il) => il,
@@ -974,5 +1221,56 @@ mod tests {
         };
 
         assert_eq!(integer.value, expected);
+    }
+
+    fn assert_identifier(expression: &Expression, expected: String) {
+        let identifier = match expression {
+            Expression::Identifier(identifier) => identifier,
+            _ => panic!("Expected Identifier, got {:?}", expression),
+        };
+
+        assert_eq!(identifier.value, expected)
+    }
+
+    fn assert_boolean_literal(expression: &Expression, expected: bool) {
+        let boolean_expression = match expression {
+            Expression::Boolean(boolean) => boolean,
+            _ => panic!("Expected boolean, got {:?}", expression),
+        };
+
+        assert_eq!(boolean_expression.value, expected);
+        assert_eq!(boolean_expression.token_literal(), expected.to_string())
+    }
+
+    enum ExpectedAssertLiteral {
+        S(String),
+        I(i32),
+        B(bool),
+    }
+
+    fn assert_literal_expression(expression: &Expression, expected: ExpectedAssertLiteral) {
+        match expected {
+            ExpectedAssertLiteral::S(v) => assert_identifier(expression, v),
+            ExpectedAssertLiteral::I(v) => assert_integer_literal(expression, v),
+            ExpectedAssertLiteral::B(v) => assert_boolean_literal(expression, v),
+        };
+    }
+
+    fn test_infix_expression(
+        expression: &Expression,
+        left: ExpectedAssertLiteral,
+        operator: String,
+        right: ExpectedAssertLiteral,
+    ) {
+        let infix_expression = match expression {
+            Expression::InfixExpression(e) => e,
+            _ => panic!("Expected infix expression, got {:?}", expression),
+        };
+
+        assert_literal_expression(&infix_expression.left, left);
+
+        assert_eq!(infix_expression.operator, operator);
+
+        assert_literal_expression(&infix_expression.right, right);
     }
 }
