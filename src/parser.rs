@@ -6,6 +6,9 @@ use lazy_static::lazy_static;
 use crate::ast;
 use crate::lexer;
 use crate::token;
+use trace::trace;
+
+trace::init_depth_var!();
 
 // TODO: Consider using Pratt terminology like `nuds` and `leds`
 // Not sure it's very comprehensible, though...
@@ -88,14 +91,13 @@ impl LambdaParsers {
             Box::new(Self::parse_prefix_expression),
         );
 
-        self.register_prefix(
-            token::TRUE.to_string(),
-            Box::new(Self::parse_boolean),
-        );
+        self.register_prefix(token::TRUE.to_string(), Box::new(Self::parse_boolean));
+
+        self.register_prefix(token::FALSE.to_string(), Box::new(Self::parse_boolean));
 
         self.register_prefix(
-            token::FALSE.to_string(),
-            Box::new(Self::parse_boolean),
+            token::LPAREN.to_string(),
+            Box::new(Self::parse_grouped_expressions),
         );
 
         // INFIX PARSERS
@@ -200,7 +202,6 @@ impl LambdaParsers {
         let token = parser.current_token.clone();
         let operator = parser.current_token.literal.clone();
 
-        dbg!(&parser);
         parser.next_token();
 
         // If we enter `parse_expression()` here without `next_token()`
@@ -251,6 +252,36 @@ impl LambdaParsers {
             right,
         }))
     }
+
+    #[trace]
+    fn parse_grouped_expressions(parser: &mut Parser) -> token::Expression {
+        // TODO: Reinitialization of parser here and in the `parse_prefix_expression`
+        // Should move this initialization somewhere and use link everywhere else.
+        let mut lambda_parsers = LambdaParsers {
+            prefix_parse_fns: HashMap::new(),
+            infix_parse_fns: HashMap::new(),
+        };
+        lambda_parsers.register_parsers();
+
+        // If we see `(` we enter here and move cursor to the next token.
+        parser.next_token();
+
+        let expression = match parser.parse_expression(&lambda_parsers, token::LOWEST) {
+            Some(expression) => expression,
+            None => panic!("Cannot find parser for {:?}", parser.current_token),
+        };
+
+        if parser.peek_token.token_type != token::RPAREN {
+            // TODO: Rework function to properly handle this case.
+            // Transofrm this to parser error.
+            panic!("I've expected `)`, but got {}", parser.peek_token.token_type);
+        } else {
+            // it's `)` token, skip it, we already parced expression in `(...)`
+            parser.next_token();
+        }
+
+        expression
+    }
 }
 
 #[derive(Debug)]
@@ -299,7 +330,6 @@ impl Parser {
     }
 
     fn parse_statement(&mut self, lambda_parsers: &LambdaParsers) -> Option<token::Statements> {
-        dbg!(&self);
         match self.current_token.token_type.as_ref() {
             token::LET => match self.parse_let_statement() {
                 Some(stmt) => Some(token::Statements::LetStatement(stmt)),
@@ -392,8 +422,6 @@ impl Parser {
             },
         };
 
-        dbg!(&statement);
-
         if self.peek_token.token_type == token::SEMICOLON {
             self.next_token();
         }
@@ -401,6 +429,7 @@ impl Parser {
         Some(statement)
     }
 
+    #[trace]
     fn parse_expression(
         &mut self,
         lambda_parsers: &LambdaParsers,
@@ -409,8 +438,6 @@ impl Parser {
         let prefix_function = lambda_parsers
             .prefix_parse_fns
             .get(&self.current_token.token_type.clone());
-
-        dbg!(&self);
 
         let mut left = match prefix_function {
             Some(PrefixParseFn(prefix_parse_fn)) => prefix_parse_fn(self),
@@ -892,6 +919,51 @@ mod tests {
 
                 assert_eq!(boolean_expression.value, boolean_value);
             });
+    }
+
+    #[test]
+    fn test_operator_precedence() {
+        let inputs = [
+            "(1 + 2) * 3 + 4;".to_string(),
+            "!true == false;".to_string(),
+        ];
+
+        let expected = [
+            "(((1 + 2) * 3) + 4)\n".to_string(),
+            "((! true) == false)\n".to_string(),
+        ];
+
+        // Iterate over every prefix expression and test it individualy
+        inputs.into_iter().zip(expected.into_iter()).for_each(|(input, expected)| {
+            let lexer = lexer::Lexer::new(input.to_string());
+            let mut parser = Parser::new(lexer);
+
+            let mut lambda_parsers = LambdaParsers {
+                prefix_parse_fns: HashMap::new(),
+                infix_parse_fns: HashMap::new(),
+            };
+
+            lambda_parsers.register_parsers();
+
+            let program = match parser.parse_program(&lambda_parsers) {
+                Some(program) => program,
+                None => panic!("Could not parse program"),
+            };
+
+            // We would like to accumulate every error in program
+            // and later render them to user.
+            if !parser.errors.is_empty() {
+                println!("Parser encountered {} errors", parser.errors.len());
+                for error in parser.errors {
+                    println!("parser error: {}", error);
+                }
+                panic!("A few parsing error encountered, see them above.");
+            }
+
+            // This and a couple of next tests will be run with
+            // stringification in mind. Like this assertion:
+            assert_eq!(program.to_string(), *expected);
+        });
     }
 
     // <<-- HELPER ASSERTIONS -->>
