@@ -1,6 +1,6 @@
 use crate::ast;
-use std::fmt;
 use std::collections::HashMap;
+use std::fmt;
 
 pub type TokenType = String;
 
@@ -85,8 +85,6 @@ pub const CALL: u8 = 7; // do_something()
 // TODO: Move this block to ast module. It's a bad place for it
 // to be here.
 
-
-
 // <<--**********************-->>
 // STATEMENTS
 // <<--**********************-->>
@@ -111,12 +109,12 @@ impl ast::Node for Statements {
 
 impl fmt::Display for Statements {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            match self {
-                Statements::LetStatement(ls) => fmt::Display::fmt(ls, f),
-                Statements::ReturnStatement(rs) => fmt::Display::fmt(rs, f),
-                Statements::ExpressionStatement(es) => fmt::Display::fmt(es, f),
-                _ => panic!("Node for some statement is not implemented yet"),
-            }
+        match self {
+            Statements::LetStatement(ls) => fmt::Display::fmt(ls, f),
+            Statements::ReturnStatement(rs) => fmt::Display::fmt(rs, f),
+            Statements::ExpressionStatement(es) => fmt::Display::fmt(es, f),
+            _ => panic!("Node for some statement is not implemented yet"),
+        }
     }
 }
 
@@ -129,9 +127,10 @@ pub enum Expression {
     Identifier(Identifier),
     IntegerLiteral(IntegerLiteral),
     PrefixExpression(Box<PrefixExpression>), // This expression contains recursion
-    InfixExpression(Box<InfixExpression>), // Same as previous
+    InfixExpression(Box<InfixExpression>),   // Same as previous
     Boolean(Boolean),
     IfExpression(Box<IfExpression>),
+    FunctionLiteral(FunctionLiteral),
 }
 
 impl ast::Node for Expression {
@@ -143,6 +142,7 @@ impl ast::Node for Expression {
             Expression::InfixExpression(ie) => ie.token_literal(),
             Expression::Boolean(b) => b.token_literal(),
             Expression::IfExpression(ie) => ie.token_literal(),
+            Expression::FunctionLiteral(f) => f.token_literal(),
         }
     }
 }
@@ -156,6 +156,7 @@ impl fmt::Display for Expression {
             Expression::InfixExpression(ie) => fmt::Display::fmt(ie, f),
             Expression::Boolean(b) => fmt::Display::fmt(b, f),
             Expression::IfExpression(ie) => fmt::Display::fmt(ie, f),
+            Expression::FunctionLiteral(func) => fmt::Display::fmt(func, f),
         }
     }
 }
@@ -167,7 +168,7 @@ pub struct LetStatement {
     pub token: Token,
     pub name: Identifier,
     pub value: String, // for now it's good enough :)
-    // pub value: Box<ast::Expression>, // interface
+                       // pub value: Box<ast::Expression>, // interface
 }
 
 impl ast::Statement for LetStatement {
@@ -187,11 +188,18 @@ impl fmt::Display for LetStatement {
         use crate::ast::Node;
         match self.value.as_ref() {
             "" => write!(f, "{} {} = ;", self.token_literal(), self.name.value), // empty string is extremly bad design decision, but we'll it so far.
-            _ => write!(f, "{} {} = {};", self.token_literal(), self.name.value, self.value),
+            _ => write!(
+                f,
+                "{} {} = {};",
+                self.token_literal(),
+                self.name.value,
+                self.value
+            ),
         }
     }
 }
 
+// Include Identifier in Expression group?
 #[derive(Debug, Clone)]
 pub struct Identifier {
     pub token: Token,
@@ -381,13 +389,18 @@ impl ast::Node for IfExpression {
 impl fmt::Display for IfExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.alternative.clone() {
-            Some(alternative) => write!(f, "if {} {} else {}", self.condition, self.consequence, alternative),
+            Some(alternative) => write!(
+                f,
+                "if {} {} else {}",
+                self.condition, self.consequence, alternative
+            ),
             None => write!(f, "if {} {}", self.condition, self.consequence),
         }
     }
 }
 
 // Internal statement representation designed to work with IfExpression
+// It is now also used for FunctionLiteral besides IfExpression.
 #[derive(Debug, Clone)]
 pub struct BlockStatement {
     pub token: Token,
@@ -409,3 +422,43 @@ impl fmt::Display for BlockStatement {
         Ok(())
     }
 }
+
+// Function literals.
+//
+// Example: fn (x, y) { return x + y; }
+//
+// Structure: fn <parameters> <block statement>
+#[derive(Debug, Clone)]
+pub struct FunctionLiteral {
+    pub token: Token,
+    pub parameters: Option<Vec<Identifier>>,
+    pub body: BlockStatement,
+}
+
+impl ast::Node for FunctionLiteral {
+    fn token_literal(&self) -> String {
+        self.token.literal.to_string()
+    }
+}
+
+impl fmt::Display for FunctionLiteral {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use ast::Node;
+        let params = match self.parameters.clone() {
+            Some(params) => params
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join(","),
+            None => "".to_string(),
+        };
+
+        write!(f, "{}({}){{{}}}", self.token_literal(), params, self.body)
+    }
+}
+
+// Function parameters.
+//
+// Example: (a, b)
+//
+// Structure: (<parameter one>, <parameter two>, <parameter three>, ...)

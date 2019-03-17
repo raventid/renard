@@ -105,6 +105,11 @@ impl LambdaParsers {
             Box::new(Self::parse_if_expression),
         );
 
+        self.register_prefix(
+            token::FUNCTION.to_string(),
+            Box::new(Self::parse_function_literal),
+        );
+
         // INFIX PARSERS
         self.register_infix(
             token::PLUS.to_string(),
@@ -372,6 +377,73 @@ impl LambdaParsers {
             alternative,
         }))
     }
+
+    fn parse_function_literal(parser: &mut Parser) -> token::Expression {
+        // Parse function parameters helper function.
+        fn parse_function_parameters(parser: &mut Parser) -> Option<Vec<token::Identifier>> {
+            if parser.peek_token.token_type == token::RPAREN {
+                parser.next_token();
+                return None
+            }
+
+            parser.next_token(); // we already parsed `fn` here, so current token is `(`
+
+            let identifier = token::Identifier{token: parser.current_token.clone(), value: parser.current_token.literal.clone()};
+
+            let mut identifiers = vec![identifier];
+
+            dbg!(&identifiers);
+            while parser.peek_token.token_type == token::COMMA { // next identifier exists
+                parser.next_token(); // set cursor to comma
+                parser.next_token(); // skip comma
+
+                let identifier = token::Identifier{token: parser.current_token.clone(), value: parser.current_token.literal.clone()};
+                identifiers.push(identifier);
+            }
+
+            // I expect closing `)` after function arguments.
+            // (a,b,c,d,e) <- this one
+            if parser.peek_token.token_type != token::RPAREN {
+                panic!("Expected closing `)`, got `{}`", parser.peek_token.token_type);
+            }
+            parser.next_token();
+
+            Some(identifiers)
+        }
+
+        let token = parser.current_token.clone();
+
+        if parser.peek_token.token_type != token::LPAREN {
+            panic!(
+                "I've expected `(`, but got {}",
+                parser.peek_token.token_type
+            );
+        };
+        parser.next_token(); // set cursor to `(`
+
+        let parameters = parse_function_parameters(parser);
+
+        // This block is the same as one above
+        // We should find LBRACE or panic! (we should not panic actually)
+        if parser.peek_token.token_type != token::LBRACE {
+            panic!(
+                "I've expected opening `{{`, but got `{}`",
+                parser.peek_token.token_type
+            );
+        };
+
+        // next token is `{`, everything is fine, set cursor on it
+        parser.next_token();
+
+        let body = Self::parse_block_statement(parser);
+
+        token::Expression::FunctionLiteral(token::FunctionLiteral {
+            token,
+            parameters,
+            body,
+        })
+    }
+
 
     #[trace]
     fn parse_block_statement(parser: &mut Parser) -> token::BlockStatement {
@@ -1228,6 +1300,185 @@ mod tests {
             };
 
             assert_identifier(&alternative.expression, "pirozhenka".to_string());
+        });
+    }
+
+    #[test]
+    fn test_function_literal_with_no_params_expression() {
+        let inputs = ["fn() { pirozhenka; }".to_string()];
+
+        // Iterate over every prefix expression and test it individualy
+        inputs.into_iter().for_each(|input| {
+            let lexer = lexer::Lexer::new(input.to_string());
+            let mut parser = Parser::new(lexer);
+
+            let mut lambda_parsers = LambdaParsers {
+                prefix_parse_fns: HashMap::new(),
+                infix_parse_fns: HashMap::new(),
+            };
+
+            lambda_parsers.register_parsers();
+
+            let program = match parser.parse_program(&lambda_parsers) {
+                Some(program) => program,
+                None => panic!("Could not parse program"),
+            };
+
+            // We would like to accumulate every error in program
+            // and later render them to user.
+            if !parser.errors.is_empty() {
+                println!("Parser encountered {} errors", parser.errors.len());
+
+                for error in parser.errors {
+                    println!("parser error: {}", error);
+                }
+
+                panic!("A few parsing error encountered, see them above.");
+            }
+
+            assert_eq!(program.statements.len(), 1);
+
+            let expression_statement = match &program.statements[0] {
+                Statements::ExpressionStatement(statement) => statement,
+                _ => panic!("I didn't expected anything besides `expression` statement"),
+            };
+
+            let fn_literal = match &expression_statement.expression {
+                Expression::FunctionLiteral(f) => f,
+                _ => panic!("I've expected FN literal here - sorry"),
+            };
+
+            assert!(fn_literal.parameters.is_none());
+
+            assert_eq!(fn_literal.body.statements.len(), 1);
+
+            let body_statements = match fn_literal.body.statements[0].clone() {
+                Statements::ExpressionStatement(stmt) => stmt,
+                _ => panic!("Expected expression statement, got {}", fn_literal.body.statements[0]),
+            };
+
+            assert_eq!(body_statements.expression.token_literal(), "pirozhenka");
+        });
+    }
+
+    #[test]
+    fn test_function_literal_with_one_params_expression() {
+        let inputs = ["fn(pirozhenka) { pirozhenka; }".to_string()];
+
+        // Iterate over every prefix expression and test it individualy
+        inputs.into_iter().for_each(|input| {
+            let lexer = lexer::Lexer::new(input.to_string());
+            let mut parser = Parser::new(lexer);
+
+            let mut lambda_parsers = LambdaParsers {
+                prefix_parse_fns: HashMap::new(),
+                infix_parse_fns: HashMap::new(),
+            };
+
+            lambda_parsers.register_parsers();
+
+            let program = match parser.parse_program(&lambda_parsers) {
+                Some(program) => program,
+                None => panic!("Could not parse program"),
+            };
+
+            // We would like to accumulate every error in program
+            // and later render them to user.
+            if !parser.errors.is_empty() {
+                println!("Parser encountered {} errors", parser.errors.len());
+
+                for error in parser.errors {
+                    println!("parser error: {}", error);
+                }
+
+                panic!("A few parsing error encountered, see them above.");
+            }
+
+            assert_eq!(program.statements.len(), 1);
+
+            let expression_statement = match &program.statements[0] {
+                Statements::ExpressionStatement(statement) => statement,
+                _ => panic!("I didn't expected anything besides `expression` statement"),
+            };
+
+            let fn_literal = match &expression_statement.expression {
+                Expression::FunctionLiteral(f) => f,
+                _ => panic!("I've expected FN literal here - sorry"),
+            };
+
+            assert_eq!(fn_literal.parameters.clone().unwrap().len(), 1);
+
+            assert_eq!(&fn_literal.parameters.clone().unwrap()[0].value, "pirozhenka");
+
+            assert_eq!(fn_literal.body.statements.len(), 1);
+
+            let body_statements = match fn_literal.body.statements[0].clone() {
+                Statements::ExpressionStatement(stmt) => stmt,
+                _ => panic!("Expected expression statement, got {}", fn_literal.body.statements[0]),
+            };
+
+            assert_eq!(body_statements.expression.token_literal(), "pirozhenka");
+        });
+    }
+
+    #[test]
+    fn test_function_literal_with_two_params_expression() {
+        let inputs = ["fn(pirozhenka, bulochka) { pirozhenka + bulochka; }".to_string()];
+
+        // Iterate over every prefix expression and test it individualy
+        inputs.into_iter().for_each(|input| {
+            let lexer = lexer::Lexer::new(input.to_string());
+            let mut parser = Parser::new(lexer);
+
+            let mut lambda_parsers = LambdaParsers {
+                prefix_parse_fns: HashMap::new(),
+                infix_parse_fns: HashMap::new(),
+            };
+
+            lambda_parsers.register_parsers();
+
+            let program = match parser.parse_program(&lambda_parsers) {
+                Some(program) => program,
+                None => panic!("Could not parse program"),
+            };
+
+            // We would like to accumulate every error in program
+            // and later render them to user.
+            if !parser.errors.is_empty() {
+                println!("Parser encountered {} errors", parser.errors.len());
+
+                for error in parser.errors {
+                    println!("parser error: {}", error);
+                }
+
+                panic!("A few parsing error encountered, see them above.");
+            }
+
+            assert_eq!(program.statements.len(), 1);
+
+            let expression_statement = match &program.statements[0] {
+                Statements::ExpressionStatement(statement) => statement,
+                _ => panic!("I didn't expected anything besides `expression` statement"),
+            };
+
+            let fn_literal = match &expression_statement.expression {
+                Expression::FunctionLiteral(f) => f,
+                _ => panic!("I've expected FN literal here - sorry"),
+            };
+
+            assert_eq!(fn_literal.parameters.clone().unwrap().len(), 2);
+
+            assert_eq!(&fn_literal.parameters.clone().unwrap()[0].value, "pirozhenka");
+            assert_eq!(&fn_literal.parameters.clone().unwrap()[1].value, "bulochka");
+
+            assert_eq!(fn_literal.body.statements.len(), 1);
+
+            let body_statements = match fn_literal.body.statements[0].clone() {
+                Statements::ExpressionStatement(stmt) => stmt,
+                _ => panic!("Expected expression statement, got {}", fn_literal.body.statements[0]),
+            };
+
+            test_infix_expression(&body_statements.expression, ExpectedAssertLiteral::S("pirozhenka".to_string()), "+".to_string(), ExpectedAssertLiteral::S("bulochka".to_string()));
         });
     }
     // <<-- HELPER ASSERTIONS -->>
