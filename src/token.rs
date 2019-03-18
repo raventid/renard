@@ -129,8 +129,9 @@ pub enum Expression {
     PrefixExpression(Box<PrefixExpression>), // This expression contains recursion
     InfixExpression(Box<InfixExpression>),   // Same as previous
     Boolean(Boolean),
-    IfExpression(Box<IfExpression>),
+    IfExpression(Box<IfExpression>), // recur
     FunctionLiteral(FunctionLiteral),
+    CallExpression(Box<CallExpression>), // recur
 }
 
 impl ast::Node for Expression {
@@ -143,6 +144,7 @@ impl ast::Node for Expression {
             Expression::Boolean(b) => b.token_literal(),
             Expression::IfExpression(ie) => ie.token_literal(),
             Expression::FunctionLiteral(f) => f.token_literal(),
+            Expression::CallExpression(ce) => ce.token_literal(),
         }
     }
 }
@@ -157,6 +159,7 @@ impl fmt::Display for Expression {
             Expression::Boolean(b) => fmt::Display::fmt(b, f),
             Expression::IfExpression(ie) => fmt::Display::fmt(ie, f),
             Expression::FunctionLiteral(func) => fmt::Display::fmt(func, f),
+            Expression::CallExpression(ce) => fmt::Display::fmt(ce, f),
         }
     }
 }
@@ -457,8 +460,45 @@ impl fmt::Display for FunctionLiteral {
     }
 }
 
-// Function parameters.
+// Call expression.
 //
-// Example: (a, b)
+// Human readable description:
 //
-// Structure: (<parameter one>, <parameter two>, <parameter three>, ...)
+// To elaborate a bit on `Example1` I'd like to note that
+// we can call function inplace, this is exactly what you
+// can see in the this example.
+//
+// Second example illustrates a simple "named function" call.
+//
+// Example1: fn(a,b) {a+b;}(1,2)
+// Example2: hello("World")
+//
+// Structure: <expression>(<comma separated expressions>)
+#[derive(Debug, Clone)]
+pub struct CallExpression {
+    pub token: Token,
+    pub function: Expression,
+    pub arguments: Option<Vec<Expression>>,
+}
+
+impl ast::Node for CallExpression {
+    fn token_literal(&self) -> String {
+        self.token.literal.to_string()
+    }
+}
+
+impl fmt::Display for CallExpression {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let args = match self.arguments.clone() {
+            Some(args) => args
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join(", "),
+            None => "".to_string(),
+
+        };
+
+        write!(f, "{}({})", self.function, args)
+    }
+}

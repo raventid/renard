@@ -24,6 +24,7 @@ lazy_static! {
         (token::MINUS.to_string(), token::SUM),
         (token::SLASH.to_string(), token::PRODUCT),
         (token::ASTERISK.to_string(), token::PRODUCT),
+        (token::LPAREN.to_string(), token::CALL), // `(` in infix position should have highest priority
     ]
     .iter()
     .cloned()
@@ -100,10 +101,7 @@ impl LambdaParsers {
             Box::new(Self::parse_grouped_expressions),
         );
 
-        self.register_prefix(
-            token::IF.to_string(),
-            Box::new(Self::parse_if_expression),
-        );
+        self.register_prefix(token::IF.to_string(), Box::new(Self::parse_if_expression));
 
         self.register_prefix(
             token::FUNCTION.to_string(),
@@ -150,6 +148,13 @@ impl LambdaParsers {
             token::GT.to_string(),
             Box::new(Self::parse_infix_expression),
         );
+
+        // By registering `(` handler as an infix
+        // parser we allow it to parse CALL syntax.
+        self.register_infix(
+            token::LPAREN.to_string(),
+            Box::new(Self::parse_call_expression),
+        )
     }
 
     fn register_prefix(&mut self, token_type: token::TokenType, f: Box<PrefixParseFnAlias>) {
@@ -365,7 +370,6 @@ impl LambdaParsers {
             parser.next_token();
 
             Some(Self::parse_block_statement(parser))
-
         } else {
             None
         };
@@ -383,28 +387,38 @@ impl LambdaParsers {
         fn parse_function_parameters(parser: &mut Parser) -> Option<Vec<token::Identifier>> {
             if parser.peek_token.token_type == token::RPAREN {
                 parser.next_token();
-                return None
+                return None;
             }
 
             parser.next_token(); // we already parsed `fn` here, so current token is `(`
 
-            let identifier = token::Identifier{token: parser.current_token.clone(), value: parser.current_token.literal.clone()};
+            let identifier = token::Identifier {
+                token: parser.current_token.clone(),
+                value: parser.current_token.literal.clone(),
+            };
 
             let mut identifiers = vec![identifier];
 
             dbg!(&identifiers);
-            while parser.peek_token.token_type == token::COMMA { // next identifier exists
+            while parser.peek_token.token_type == token::COMMA {
+                // next identifier exists
                 parser.next_token(); // set cursor to comma
                 parser.next_token(); // skip comma
 
-                let identifier = token::Identifier{token: parser.current_token.clone(), value: parser.current_token.literal.clone()};
+                let identifier = token::Identifier {
+                    token: parser.current_token.clone(),
+                    value: parser.current_token.literal.clone(),
+                };
                 identifiers.push(identifier);
             }
 
             // I expect closing `)` after function arguments.
             // (a,b,c,d,e) <- this one
             if parser.peek_token.token_type != token::RPAREN {
-                panic!("Expected closing `)`, got `{}`", parser.peek_token.token_type);
+                panic!(
+                    "Expected closing `)`, got `{}`",
+                    parser.peek_token.token_type
+                );
             }
             parser.next_token();
 
@@ -444,7 +458,6 @@ impl LambdaParsers {
         })
     }
 
-
     #[trace]
     fn parse_block_statement(parser: &mut Parser) -> token::BlockStatement {
         // TODO: Reinitialization of parser here and in the `parse_prefix_expression`
@@ -473,6 +486,63 @@ impl LambdaParsers {
         }
 
         token::BlockStatement { token, statements }
+    }
+
+    fn parse_call_expression(
+        parser: &mut Parser,
+        function: token::Expression,
+    ) -> token::Expression {
+        fn parse_call_arguments(parser: &mut Parser) -> Option<Vec<token::Expression>> {
+            // TODO: Reinitialization of parser here and in the `parse_prefix_expression`
+            // Should move this initialization somewhere and use link everywhere else.
+            let mut lambda_parsers = LambdaParsers {
+                prefix_parse_fns: HashMap::new(),
+                infix_parse_fns: HashMap::new(),
+            };
+            lambda_parsers.register_parsers();
+
+            if parser.peek_token.token_type == token::RPAREN {
+                parser.next_token();
+                return None;
+            }
+
+            parser.next_token(); // skip `RPAREN`
+
+            let first_param = match parser.parse_expression(&lambda_parsers, token::LOWEST) {
+                Some(expr) => expr,
+                None => panic!("Failed to parse param for function CALL"),
+            };
+
+            let mut params = vec![first_param];
+
+            while parser.peek_token.token_type == token::COMMA {
+                parser.next_token(); // set cursor to `,`
+                parser.next_token(); // skip `,` and move cursor to next token
+
+                let param = match parser.parse_expression(&lambda_parsers, token::LOWEST) {
+                    Some(expr) => expr,
+                    None => panic!("Failed to parse param for function CALL"),
+                };
+
+                params.push(param);
+            }
+
+            if parser.peek_token.token_type != token::RPAREN {
+                panic!("Expected closing `)` after params, got {}", parser.peek_token.token_type);
+            }
+            parser.next_token(); // set cursor to RPAREN and leave parser
+
+            Some(params)
+        }
+
+        let token = parser.current_token.clone();
+        let arguments = parse_call_arguments(parser);
+
+        token::Expression::CallExpression(Box::new(token::CallExpression {
+            token,
+            function,
+            arguments,
+        }))
     }
 }
 
@@ -1354,7 +1424,10 @@ mod tests {
 
             let body_statements = match fn_literal.body.statements[0].clone() {
                 Statements::ExpressionStatement(stmt) => stmt,
-                _ => panic!("Expected expression statement, got {}", fn_literal.body.statements[0]),
+                _ => panic!(
+                    "Expected expression statement, got {}",
+                    fn_literal.body.statements[0]
+                ),
             };
 
             assert_eq!(body_statements.expression.token_literal(), "pirozhenka");
@@ -1408,13 +1481,19 @@ mod tests {
 
             assert_eq!(fn_literal.parameters.clone().unwrap().len(), 1);
 
-            assert_eq!(&fn_literal.parameters.clone().unwrap()[0].value, "pirozhenka");
+            assert_eq!(
+                &fn_literal.parameters.clone().unwrap()[0].value,
+                "pirozhenka"
+            );
 
             assert_eq!(fn_literal.body.statements.len(), 1);
 
             let body_statements = match fn_literal.body.statements[0].clone() {
                 Statements::ExpressionStatement(stmt) => stmt,
-                _ => panic!("Expected expression statement, got {}", fn_literal.body.statements[0]),
+                _ => panic!(
+                    "Expected expression statement, got {}",
+                    fn_literal.body.statements[0]
+                ),
             };
 
             assert_eq!(body_statements.expression.token_literal(), "pirozhenka");
@@ -1468,21 +1547,102 @@ mod tests {
 
             assert_eq!(fn_literal.parameters.clone().unwrap().len(), 2);
 
-            assert_eq!(&fn_literal.parameters.clone().unwrap()[0].value, "pirozhenka");
+            assert_eq!(
+                &fn_literal.parameters.clone().unwrap()[0].value,
+                "pirozhenka"
+            );
             assert_eq!(&fn_literal.parameters.clone().unwrap()[1].value, "bulochka");
 
             assert_eq!(fn_literal.body.statements.len(), 1);
 
             let body_statements = match fn_literal.body.statements[0].clone() {
                 Statements::ExpressionStatement(stmt) => stmt,
-                _ => panic!("Expected expression statement, got {}", fn_literal.body.statements[0]),
+                _ => panic!(
+                    "Expected expression statement, got {}",
+                    fn_literal.body.statements[0]
+                ),
             };
 
-            test_infix_expression(&body_statements.expression, ExpectedAssertLiteral::S("pirozhenka".to_string()), "+".to_string(), ExpectedAssertLiteral::S("bulochka".to_string()));
+            test_infix_expression(
+                &body_statements.expression,
+                ExpectedAssertLiteral::S("pirozhenka".to_string()),
+                "+".to_string(),
+                ExpectedAssertLiteral::S("bulochka".to_string()),
+            );
         });
     }
-    // <<-- HELPER ASSERTIONS -->>
 
+    #[test]
+    fn test_call_expression() {
+        let inputs = ["sdelay_pirozhenku(muka, sahar, slivki + ricotta)".to_string()];
+
+        // Iterate over every prefix expression and test it individualy
+        inputs.into_iter().for_each(|input| {
+            let lexer = lexer::Lexer::new(input.to_string());
+            let mut parser = Parser::new(lexer);
+
+            let mut lambda_parsers = LambdaParsers {
+                prefix_parse_fns: HashMap::new(),
+                infix_parse_fns: HashMap::new(),
+            };
+
+            lambda_parsers.register_parsers();
+
+            let program = match parser.parse_program(&lambda_parsers) {
+                Some(program) => program,
+                None => panic!("Could not parse program"),
+            };
+
+            // We would like to accumulate every error in program
+            // and later render them to user.
+            if !parser.errors.is_empty() {
+                println!("Parser encountered {} errors", parser.errors.len());
+
+                for error in parser.errors {
+                    println!("parser error: {}", error);
+                }
+
+                panic!("A few parsing error encountered, see them above.");
+            }
+
+            assert_eq!(program.statements.len(), 1);
+
+            let expression_statement = match &program.statements[0] {
+                Statements::ExpressionStatement(statement) => statement,
+                _ => panic!("I didn't expected anything besides `expression` statement"),
+            };
+
+            let call_expression = match &expression_statement.expression {
+                Expression::CallExpression(ce) => ce,
+                _ => panic!("I've expected CALL expression here - sorry"),
+            };
+
+            assert_identifier(&call_expression.function, "sdelay_pirozhenku".to_string());
+            assert_eq!(call_expression.arguments.clone().unwrap().len(), 3);
+            assert_literal_expression(
+                &call_expression.arguments.clone().unwrap()[0],
+                ExpectedAssertLiteral::S("muka".to_string()),
+            );
+            assert_literal_expression(
+                &call_expression.arguments.clone().unwrap()[1],
+                ExpectedAssertLiteral::S("sahar".to_string()),
+            );
+            test_infix_expression(
+                &call_expression.arguments.clone().unwrap()[2],
+                ExpectedAssertLiteral::S("slivki".to_string()),
+                "+".to_string(),
+                ExpectedAssertLiteral::S("ricotta".to_string()),
+            );
+        });
+    }
+
+    //**********************************************
+    //**********************************************
+    //**********************************************
+    //*********<<-- HELPER ASSERTIONS -->>**********
+    //**********************************************
+    //**********************************************
+    //**********************************************
     fn assert_integer_literal(expression: &Expression, expected: i32) {
         let integer = match expression {
             Expression::IntegerLiteral(il) => il,
