@@ -170,14 +170,7 @@ impl fmt::Display for Expression {
 pub struct LetStatement {
     pub token: Token,
     pub name: Identifier,
-    pub value: String, // for now it's good enough :)
-                       // pub value: Box<ast::Expression>, // interface
-}
-
-impl ast::Statement for LetStatement {
-    fn statement_node(&self) -> String {
-        "LetStatement".to_string()
-    }
+    pub value: Expression,
 }
 
 impl ast::Node for LetStatement {
@@ -189,16 +182,13 @@ impl ast::Node for LetStatement {
 impl fmt::Display for LetStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use crate::ast::Node;
-        match self.value.as_ref() {
-            "" => write!(f, "{} {} = ;", self.token_literal(), self.name.value), // empty string is extremly bad design decision, but we'll it so far.
-            _ => write!(
-                f,
-                "{} {} = {};",
-                self.token_literal(),
-                self.name.value,
-                self.value
-            ),
-        }
+        write!(
+            f,
+            "{} {} = {};",
+            self.token_literal(),
+            self.name.value,
+            self.value
+        )
     }
 }
 
@@ -227,8 +217,7 @@ impl fmt::Display for Identifier {
 #[derive(Debug, Clone)]
 pub struct ReturnStatement {
     pub token: Token,
-    pub return_value: String, // not sure about String here, maybe introduce Expressions sum?
-                              // potentially we might overload String, we all love
+    pub return_value: Expression,
 }
 
 impl ast::Node for ReturnStatement {
@@ -240,10 +229,7 @@ impl ast::Node for ReturnStatement {
 impl fmt::Display for ReturnStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use crate::ast::Node;
-        match self.return_value.as_ref() {
-            "" => write!(f, "{} ;", self.token_literal()), // empty string is extremly bad design decision, but we'll it so far.
-            _ => write!(f, "{} {};", self.token_literal(), self.return_value),
-        }
+        write!(f, "{} {};", self.token_literal(), self.return_value)
     }
 }
 
@@ -496,7 +482,6 @@ impl fmt::Display for CallExpression {
                 .collect::<Vec<_>>()
                 .join(", "),
             None => "".to_string(),
-
         };
 
         write!(f, "{}({})", self.function, args)

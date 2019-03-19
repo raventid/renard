@@ -633,13 +633,36 @@ impl Parser {
             return None;
         }
 
+        self.next_token(); // skip ASSIGN `=` in let statement
+
+        // TODO: Very bad, we have to create lambda parsers here.
+        // I will fix it soon.
+        let mut lambda_parsers = LambdaParsers {
+            prefix_parse_fns: HashMap::new(),
+            infix_parse_fns: HashMap::new(),
+        };
+        lambda_parsers.register_parsers();
+
+        let value = match self.parse_expression(&lambda_parsers, token::LOWEST) {
+            Some(expr) => expr,
+            None => panic!("FAILED TO PARSE {}", self.current_token.token_type),
+        };
+
+        if self.peek_token.token_type == token::SEMICOLON {
+            self.next_token(); // set cursor to SEMICOLON
+        }
         // TODO: It's a fragile design for now, this code might hang if we don't
         // have a terminating semicolon and next token is token::EOF
         // in this case we'll enter an infinite loop.
         // Doesn't next_token() protect us from this? Apparently - not.
-        while !(self.current_token.token_type == token::SEMICOLON) {
-            self.next_token(); // skip to next statement in our program
-        }
+        //
+        // UPD: Now as we parse expression here we do not care about
+        // this corner case that much, but I think we should care about it
+        // in the future. So I'll leave this note here.
+        //
+        // while !(self.current_token.token_type == token::SEMICOLON) {
+        //     self.next_token(); // skip to next statement in our program
+        // }
 
         // TODO: Same happens in return parser. I'm skipping
         // semicolon, so in `parse_statement` function I can
@@ -650,24 +673,37 @@ impl Parser {
         Some(token::LetStatement {
             token,
             name,
-            value: "dumb".to_string(),
+            value,
         })
     }
 
+    // TODO: Why Option here?
     fn parse_return_statement(&mut self) -> Option<token::ReturnStatement> {
-        let statement = token::ReturnStatement {
-            token: self.current_token.clone(),
-            return_value: "dumb".to_string(), // How to better describe expression?
+        let token = self.current_token.clone();
+
+        self.next_token();
+
+        // TODO: Very bad, we have to create lambda parsers here.
+        // I will fix it soon.
+        let mut lambda_parsers = LambdaParsers {
+            prefix_parse_fns: HashMap::new(),
+            infix_parse_fns: HashMap::new(),
+        };
+        lambda_parsers.register_parsers();
+
+        let return_value = match self.parse_expression(&lambda_parsers, token::LOWEST) {
+            Some(expr) => expr,
+            None => panic!("UNREACHABLE: return statement parser with {}", self.current_token.token_type),
         };
 
-        self.next_token();
-
-        while !(self.peek_token.token_type == token::SEMICOLON) {
-            self.next_token(); // skip everything till `;` for now
+        if self.peek_token.token_type == token::SEMICOLON {
+            self.next_token(); // set cursor to semicolon if any
         }
 
-        // TODO: Should I skip semicolon here?
-        self.next_token();
+        let statement = token::ReturnStatement {
+            token,
+            return_value,
+        };
 
         Some(statement)
     }
@@ -760,8 +796,8 @@ mod tests {
     #[test]
     fn test_let_statements() {
         let input = r###"
-          let x = 5;
-          let y = 10;
+          let a = 1;
+          let b = 2;
           let bebe = 101010;
         "###
         .to_string();
@@ -793,13 +829,17 @@ mod tests {
 
         assert_eq!(program.statements.len(), 3);
 
-        let expected = vec!["x".to_string(), "y".to_string(), "bebe".to_string()];
+        let expected = vec![
+            ("a".to_string(), 1),
+            ("b".to_string(), 2),
+            ("bebe".to_string(), 101010),
+        ];
 
         program
             .statements
             .into_iter()
             .zip(expected.into_iter())
-            .for_each(|(statement, expected_identifier)| {
+            .for_each(|(statement, (expected_identifier, integer))| {
                 assert_eq!(statement.token_literal(), "let");
 
                 let let_statement = match statement {
@@ -808,8 +848,8 @@ mod tests {
                 };
 
                 assert_eq!(let_statement.name.value, expected_identifier);
-
                 assert_eq!(let_statement.name.token_literal(), expected_identifier);
+                assert_integer_literal(&let_statement.value, integer);
             });
     }
 
@@ -884,7 +924,7 @@ mod tests {
 
         assert_eq!(program.statements.len(), 2);
 
-        let expected = vec!["1".to_string(), "111".to_string()];
+        let expected = vec![1, 111];
 
         program
             .statements
@@ -897,6 +937,8 @@ mod tests {
                     Statements::ReturnStatement(statement) => statement,
                     _ => panic!("I didn't expected anything besides `return` statement"),
                 };
+
+                assert_integer_literal(&return_statement.return_value, expected_identifier);
             });
     }
 
