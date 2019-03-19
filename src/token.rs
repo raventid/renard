@@ -102,7 +102,6 @@ impl ast::Node for Statements {
             Statements::LetStatement(ls) => ls.token_literal(),
             Statements::ReturnStatement(rs) => rs.token_literal(),
             Statements::ExpressionStatement(es) => es.token_literal(),
-            _ => panic!("Node for some statement is not implemented yet"),
         }
     }
 }
@@ -113,7 +112,6 @@ impl fmt::Display for Statements {
             Statements::LetStatement(ls) => fmt::Display::fmt(ls, f),
             Statements::ReturnStatement(rs) => fmt::Display::fmt(rs, f),
             Statements::ExpressionStatement(es) => fmt::Display::fmt(es, f),
-            _ => panic!("Node for some statement is not implemented yet"),
         }
     }
 }
@@ -405,7 +403,7 @@ impl ast::Node for BlockStatement {
 impl fmt::Display for BlockStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for statement in self.statements.clone() {
-            write!(f, "{}", statement);
+            write!(f, "{}", statement)?
         }
 
         Ok(())

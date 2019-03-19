@@ -165,13 +165,6 @@ impl LambdaParsers {
         self.infix_parse_fns.insert(token_type, InfixParseFn(f));
     }
 
-    fn parse_identifier(parser: &mut Parser) -> token::Expression {
-        token::Expression::Identifier(token::Identifier {
-            token: parser.current_token.clone(),
-            value: parser.current_token.literal.clone(),
-        })
-    }
-
     fn parse_int_literal(parser: &mut Parser) -> token::Expression {
         let to_be_integer = parser.current_token.literal.clone();
 

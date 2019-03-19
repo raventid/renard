@@ -2,9 +2,7 @@ use std::fmt;
 use crate::token::Statements;
 
 pub trait Node {
-    fn token_literal(&self) -> String {
-        "To implement".to_string()
-    }
+    fn token_literal(&self) -> String;
 }
 
 #[derive(Debug)]
@@ -26,7 +24,7 @@ impl fmt::Display for Program {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for statement in self.statements.iter() {
             fmt::Display::fmt(&statement, f)?;
-            writeln!(f, "{}", "");
+            writeln!(f, "{}", "")?
         }
 
         Ok(())

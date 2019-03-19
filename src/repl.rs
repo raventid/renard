@@ -28,7 +28,7 @@ pub fn start() {
             _ => 1, // just ignore this for now
         };
 
-        let mut lexer = lexer::Lexer::new(user_input);
+        let lexer = lexer::Lexer::new(user_input);
         let mut parser = parser::Parser::new(lexer);
 
         // TODO: Very ugly interface to parser.
