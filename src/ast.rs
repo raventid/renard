@@ -7,18 +7,6 @@ pub trait Node {
     }
 }
 
-pub trait Statement : Node {
-    fn statement_node(&self) -> String {
-        "To implement".to_string()
-    }
-}
-
-pub trait Expression : Node {
-    fn expression_node(&self) -> String {
-        "To implement".to_string()
-    }
-}
-
 #[derive(Debug)]
 pub struct Program {
     pub statements: Vec<Statements>,

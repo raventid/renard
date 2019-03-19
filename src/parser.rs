@@ -45,7 +45,7 @@ fn precedence_by_token_type(token_type: &token::TokenType) -> u8 {
 // Greeting to the master of functinal Rust - mighty @raventid
 type PrefixParseFnAlias = Fn(&mut Parser) -> token::Expression + 'static;
 
-struct PrefixParseFn(Box<PrefixParseFnAlias>);
+pub struct PrefixParseFn(Box<PrefixParseFnAlias>);
 impl fmt::Debug for PrefixParseFn {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", "prefix_parse_fn")
@@ -54,7 +54,7 @@ impl fmt::Debug for PrefixParseFn {
 
 type InfixParseFnAlias = Fn(&mut Parser, token::Expression) -> token::Expression + 'static;
 
-struct InfixParseFn(Box<InfixParseFnAlias>);
+pub struct InfixParseFn(Box<InfixParseFnAlias>);
 impl fmt::Debug for InfixParseFn {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", "infix_parse_fn")
@@ -62,13 +62,13 @@ impl fmt::Debug for InfixParseFn {
 }
 
 #[derive(Debug)]
-struct LambdaParsers {
+pub struct LambdaParsers {
     pub prefix_parse_fns: HashMap<token::TokenType, PrefixParseFn>,
     pub infix_parse_fns: HashMap<token::TokenType, InfixParseFn>,
 }
 
 impl LambdaParsers {
-    fn register_parsers(&mut self) {
+    pub fn register_parsers(&mut self) {
         // PREFIX PARSERS
         self.register_prefix(
             token::IDENT.to_string(),
@@ -555,7 +555,7 @@ pub struct Parser {
 }
 
 impl Parser {
-    fn new(mut lexer: lexer::Lexer) -> Self {
+    pub fn new(mut lexer: lexer::Lexer) -> Self {
         let current_token = lexer.next_token();
         let peek_token = lexer.next_token();
         let errors = Vec::new();
@@ -576,7 +576,7 @@ impl Parser {
     // TODO: Current attempt. Move link to LambdaParsers to every function.
     // To avoid double borrowing of self in case of mutual recursive
     // calls.
-    pub fn parse_program(&mut self, lambda_parsers: &LambdaParsers) -> Option<ast::Program> {
+    pub fn parse_program(&mut self, lambda_parsers: &LambdaParsers) -> ast::Program {
         let mut program = ast::Program {
             statements: Vec::new(),
         };
@@ -588,7 +588,7 @@ impl Parser {
             };
             self.next_token();
         }
-        Some(program)
+        program
     }
 
     fn parse_statement(&mut self, lambda_parsers: &LambdaParsers) -> Option<token::Statements> {
@@ -812,10 +812,7 @@ mod tests {
 
         lambda_parsers.register_parsers();
 
-        let program = match parser.parse_program(&lambda_parsers) {
-            Some(program) => program,
-            None => panic!("Could not parse program"),
-        };
+        let program = parser.parse_program(&lambda_parsers);
 
         // We would like to accumulate every error in program
         // and later render them to user.
@@ -872,10 +869,7 @@ mod tests {
 
         lambda_parsers.register_parsers();
 
-        match parser.parse_program(&lambda_parsers) {
-            Some(program) => program,
-            None => panic!("Could not parse program"),
-        };
+        parser.parse_program(&lambda_parsers);
 
         // We would like to accumulate every error in program
         // and later render them to user.
@@ -907,10 +901,7 @@ mod tests {
 
         lambda_parsers.register_parsers();
 
-        let program = match parser.parse_program(&lambda_parsers) {
-            Some(program) => program,
-            None => panic!("Could not parse program"),
-        };
+        let program = parser.parse_program(&lambda_parsers);
 
         // We would like to accumulate every error in program
         // and later render them to user.
@@ -959,10 +950,7 @@ mod tests {
 
         lambda_parsers.register_parsers();
 
-        let program = match parser.parse_program(&lambda_parsers) {
-            Some(program) => program,
-            None => panic!("Could not parse program"),
-        };
+        let program = parser.parse_program(&lambda_parsers);
 
         // We would like to accumulate every error in program
         // and later render them to user.
@@ -1011,10 +999,7 @@ mod tests {
 
         lambda_parsers.register_parsers();
 
-        let program = match parser.parse_program(&lambda_parsers) {
-            Some(program) => program,
-            None => panic!("Could not parse program"),
-        };
+        let program = parser.parse_program(&lambda_parsers);
 
         // We would like to accumulate every error in program
         // and later render them to user.
@@ -1067,10 +1052,7 @@ mod tests {
 
                 lambda_parsers.register_parsers();
 
-                let program = match parser.parse_program(&lambda_parsers) {
-                    Some(program) => program,
-                    None => panic!("Could not parse program"),
-                };
+                let program = parser.parse_program(&lambda_parsers);
 
                 // We would like to accumulate every error in program
                 // and later render them to user.
@@ -1139,10 +1121,7 @@ mod tests {
 
                 lambda_parsers.register_parsers();
 
-                let program = match parser.parse_program(&lambda_parsers) {
-                    Some(program) => program,
-                    None => panic!("Could not parse program"),
-                };
+                let program = parser.parse_program(&lambda_parsers);
 
                 // We would like to accumulate every error in program
                 // and later render them to user.
@@ -1194,10 +1173,7 @@ mod tests {
 
                 lambda_parsers.register_parsers();
 
-                let program = match parser.parse_program(&lambda_parsers) {
-                    Some(program) => program,
-                    None => panic!("Could not parse program"),
-                };
+                let program = parser.parse_program(&lambda_parsers);
 
                 // We would like to accumulate every error in program
                 // and later render them to user.
@@ -1252,10 +1228,7 @@ mod tests {
 
                 lambda_parsers.register_parsers();
 
-                let program = match parser.parse_program(&lambda_parsers) {
-                    Some(program) => program,
-                    None => panic!("Could not parse program"),
-                };
+                let program = parser.parse_program(&lambda_parsers);
 
                 // We would like to accumulate every error in program
                 // and later render them to user.
@@ -1289,10 +1262,7 @@ mod tests {
 
             lambda_parsers.register_parsers();
 
-            let program = match parser.parse_program(&lambda_parsers) {
-                Some(program) => program,
-                None => panic!("Could not parse program"),
-            };
+            let program = parser.parse_program(&lambda_parsers);
 
             // We would like to accumulate every error in program
             // and later render them to user.
@@ -1355,10 +1325,7 @@ mod tests {
 
             lambda_parsers.register_parsers();
 
-            let program = match parser.parse_program(&lambda_parsers) {
-                Some(program) => program,
-                None => panic!("Could not parse program"),
-            };
+            let program = parser.parse_program(&lambda_parsers);
 
             // We would like to accumulate every error in program
             // and later render them to user.
@@ -1431,10 +1398,7 @@ mod tests {
 
             lambda_parsers.register_parsers();
 
-            let program = match parser.parse_program(&lambda_parsers) {
-                Some(program) => program,
-                None => panic!("Could not parse program"),
-            };
+            let program = parser.parse_program(&lambda_parsers);
 
             // We would like to accumulate every error in program
             // and later render them to user.
@@ -1492,10 +1456,7 @@ mod tests {
 
             lambda_parsers.register_parsers();
 
-            let program = match parser.parse_program(&lambda_parsers) {
-                Some(program) => program,
-                None => panic!("Could not parse program"),
-            };
+            let program = parser.parse_program(&lambda_parsers);
 
             // We would like to accumulate every error in program
             // and later render them to user.
@@ -1558,10 +1519,7 @@ mod tests {
 
             lambda_parsers.register_parsers();
 
-            let program = match parser.parse_program(&lambda_parsers) {
-                Some(program) => program,
-                None => panic!("Could not parse program"),
-            };
+            let program = parser.parse_program(&lambda_parsers);
 
             // We would like to accumulate every error in program
             // and later render them to user.
@@ -1630,10 +1588,7 @@ mod tests {
 
             lambda_parsers.register_parsers();
 
-            let program = match parser.parse_program(&lambda_parsers) {
-                Some(program) => program,
-                None => panic!("Could not parse program"),
-            };
+            let program = parser.parse_program(&lambda_parsers);
 
             // We would like to accumulate every error in program
             // and later render them to user.

@@ -1,6 +1,7 @@
 use crate::lexer;
-use crate::token;
+use crate::parser;
 use std::io::{stdin, stdout, Write};
+use std::collections::HashMap;
 
 const PROMPT: &str = "clojurium $ ";
 
@@ -16,13 +17,9 @@ pub fn start() {
             .expect("Fatal error: Cannot read user input");
 
         // Something like trim (perhaps just use `trim`?)
-        if let Some('\n') = user_input.chars().next_back() {
-            user_input.pop();
-        }
-        if let Some('\r') = user_input.chars().next_back() {
-            user_input.pop();
-        }
+        trim_input(&mut user_input);
 
+        // HANDLE SPECIAL REPL CODES
         match user_input.as_str() {
             ":q" => {
                 println!("Bye! Have a nice day!");
@@ -32,13 +29,42 @@ pub fn start() {
         };
 
         let mut lexer = lexer::Lexer::new(user_input);
+        let mut parser = parser::Parser::new(lexer);
 
-        while let token = lexer.next_token() {
-            if token.token_type == token::EOF {
-                break;
+        // TODO: Very ugly interface to parser.
+        // LambdaParsers is a hack itself, so worth
+        // to change it.
+        let mut lambda_parsers = parser::LambdaParsers {
+            prefix_parse_fns: HashMap::new(),
+            infix_parse_fns: HashMap::new(),
+        };
+
+        lambda_parsers.register_parsers();
+
+        let program = parser.parse_program(&lambda_parsers);
+
+        // We would like to accumulate every error in program
+        // and later render them to user.
+
+        // This function used extensively in parser tests
+        if !parser.errors.is_empty() {
+            println!("Parser encountered {} errors", parser.errors.len());
+
+            for error in parser.errors {
+                println!("parser error: {}", error);
             }
-
-            println!("{:?}", token);
+        } else {
+            println!("{}", program)
         }
+    }
+}
+
+fn trim_input(user_input: &mut String) {
+    // Something like trim (perhaps just use `trim`?)
+    if let Some('\n') = user_input.chars().next_back() {
+        user_input.pop();
+    }
+    if let Some('\r') = user_input.chars().next_back() {
+        user_input.pop();
     }
 }
