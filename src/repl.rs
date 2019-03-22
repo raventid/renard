@@ -33,6 +33,7 @@ pub fn start() {
         let lexer = lexer::Lexer::new(user_input);
         let mut parser = parser::Parser::new(lexer);
 
+
         // TODO: Very ugly interface to parser.
         // LambdaParsers is a hack itself, so worth
         // to change it.
