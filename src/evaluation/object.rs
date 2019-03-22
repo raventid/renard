@@ -1,7 +1,7 @@
 type ObjectType = String;
 
-trait ObjectT {
-    fn object_type() -> ObjectType;
+pub trait ObjectT {
+    fn object_type(&self) -> ObjectType;
     fn inspect(&self) -> String;
 }
 
@@ -15,6 +15,24 @@ pub enum Object {
     Nil(Nil),
 }
 
+impl ObjectT for Object {
+    fn object_type(&self) -> ObjectType {
+        match self {
+            Object::Integer(i) => i.object_type(),
+            Object::Boolean(b) => b.object_type(),
+            Object::Nil(n) => n.object_type(),
+        }
+    }
+
+    fn inspect(&self) -> String {
+        match self {
+            Object::Integer(i) => i.inspect(),
+            Object::Boolean(b) => b.inspect(),
+            Object::Nil(n) => n.inspect(),
+        }
+    }
+}
+
 // ************************************************
 // * Internal represantion of interpreted objects.*
 // ************************************************
@@ -26,7 +44,7 @@ pub struct Integer {
 }
 
 impl ObjectT for Integer {
-    fn object_type() -> ObjectType {
+    fn object_type(&self) -> ObjectType {
         "INTEGER".to_string()
     }
 
@@ -42,7 +60,7 @@ pub struct Boolean {
 }
 
 impl ObjectT for Boolean {
-    fn object_type() -> ObjectType {
+    fn object_type(&self) -> ObjectType {
         "BOOLEAN".to_string()
     }
 
@@ -56,7 +74,7 @@ impl ObjectT for Boolean {
 pub struct Nil {}
 
 impl ObjectT for Nil {
-    fn object_type() -> ObjectType {
+    fn object_type(&self) -> ObjectType {
         "NULL".to_string()
     }
 

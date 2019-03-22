@@ -1,5 +1,7 @@
 use crate::lexer;
 use crate::parser;
+use crate::evaluation::evaluator;
+use crate::evaluation::object::ObjectT;
 use std::io::{stdin, stdout, Write};
 use std::collections::HashMap;
 
@@ -54,7 +56,8 @@ pub fn start() {
                 println!("parser error: {}", error);
             }
         } else {
-            println!("{}", program)
+            let evaluated = evaluator::eval(evaluator::WN::P(program));
+            println!("{}", evaluated.inspect())
         }
     }
 }

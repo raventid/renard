@@ -20,7 +20,7 @@ pub enum WrappedNode {
     S(token::Statements),
     E(token::Expression),
 }
-type WN = WrappedNode; // Just alias to avoid typing :)
+pub type WN = WrappedNode; // Just alias to avoid typing :)
 
 // Option number 2.
 // Write 3 different functions to work with 3
