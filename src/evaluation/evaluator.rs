@@ -1,8 +1,8 @@
+use crate::ast;
 use crate::evaluation::object;
 use crate::lexer;
 use crate::parser;
 use crate::token;
-use crate::ast;
 
 // TODO: Consider this to be a hack.
 //
@@ -39,18 +39,28 @@ pub fn eval(node: WN) -> object::Object {
         WN::S(statement) => match statement {
             token::Statements::ExpressionStatement(expr) => eval(WN::E(expr.expression)),
             token::Statements::LetStatement(_) => panic!("don't know how to handle let statement"),
-            token::Statements::ReturnStatement(_) => panic!("don't know how to handle return statement"),
+            token::Statements::ReturnStatement(_) => {
+                panic!("don't know how to handle return statement")
+            }
         },
         WN::E(expression) => match expression {
-            token::Expression::IntegerLiteral(il) => object::Object::Integer(object::Integer {
-                value: il.value,
-            }),
+            token::Expression::IntegerLiteral(il) => {
+                object::Object::Integer(object::Integer { value: il.value })
+            }
             token::Expression::Identifier(_i) => panic!("don't how to handle identifier"),
-            token::Expression::PrefixExpression(_pe) => panic!("don't how to handle prefix expression"),
-            token::Expression::InfixExpression(_ie) => panic!("don't how to handle infix expression"),
-            token::Expression::Boolean(_b) => panic!("don't how to handle boolean"),
+            token::Expression::PrefixExpression(_pe) => {
+                panic!("don't how to handle prefix expression")
+            }
+            token::Expression::InfixExpression(_ie) => {
+                panic!("don't how to handle infix expression")
+            }
+            token::Expression::Boolean(b) => {
+                object::Object::Boolean(object::Boolean { value: b.value })
+            }
             token::Expression::IfExpression(_ie) => panic!("don't how to handle if expression"),
-            token::Expression::FunctionLiteral(_fl) => panic!("don't how to handle function literal"),
+            token::Expression::FunctionLiteral(_fl) => {
+                panic!("don't how to handle function literal")
+            }
             token::Expression::CallExpression(_ce) => panic!("don't how to handle call expression"),
         },
     }
@@ -58,7 +68,11 @@ pub fn eval(node: WN) -> object::Object {
 
 pub fn eval_statements(statements: Vec<token::Statements>) -> object::Object {
     // TODO: not sure we need unwrap here.
-    statements.into_iter().map(|statement| eval(WN::S(statement))).last().unwrap()
+    statements
+        .into_iter()
+        .map(|statement| eval(WN::S(statement)))
+        .last()
+        .unwrap()
 }
 
 #[cfg(test)]
@@ -75,6 +89,16 @@ mod tests {
         pairs.into_iter().for_each(|(value, expected)| {
             let evaluated = run_eval(value);
             assert_integer_object(evaluated, expected);
+        })
+    }
+
+    #[test]
+    fn test_eval_boolean_expression() {
+        let pairs = vec![("true".to_string(), true), ("false".to_string(), false)];
+
+        pairs.into_iter().for_each(|(value, expected)| {
+            let evaluated = run_eval(value);
+            assert_boolean_object(evaluated, expected);
         })
     }
 
@@ -100,5 +124,14 @@ mod tests {
         };
 
         assert_eq!(integer.value, expected)
+    }
+
+    fn assert_boolean_object(object: evaluation::object::Object, expected: bool) {
+        let bool = match object {
+            evaluation::object::Object::Boolean(b) => b,
+            otherwise => panic!("expected boolean, got {:?}", otherwise),
+        };
+
+        assert_eq!(bool.value, expected)
     }
 }
