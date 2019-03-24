@@ -33,13 +33,12 @@ pub type WN = WrappedNode; // Just alias to avoid typing :)
 // For now we'll stick with design approach with WrappedNode.
 // Perhaps use From/Into modification?
 
-
 // To save some typing in creating basic object
 // we will use constants.
 
-const NIL : object::Object = object::Object::Nil(object::Nil {});
-const TRUE : object::Object = object::Object::Boolean(object::Boolean { value: true });
-const FALSE : object::Object = object::Object::Boolean(object::Boolean { value: false });
+const NIL: object::Object = object::Object::Nil(object::Nil {});
+const TRUE: object::Object = object::Object::Boolean(object::Boolean { value: true });
+const FALSE: object::Object = object::Object::Boolean(object::Boolean { value: false });
 
 pub fn eval(node: WN) -> object::Object {
     match node {
@@ -64,12 +63,45 @@ pub fn eval(node: WN) -> object::Object {
                         FALSE => TRUE,
                         NIL => TRUE,
                         _ => FALSE,
-                    }
+                    },
+                    "-" => match right {
+                        object::Object::Integer(int_obj) => {
+                            object::Object::Integer(object::Integer {
+                                value: -int_obj.value,
+                            })
+                        }
+                        _ => NIL, // terrible semantics
+                    },
                     _ => object::Object::Nil(object::Nil {}), // just nil, ok
                 }
             }
-            token::Expression::InfixExpression(_ie) => {
-                panic!("don't how to handle infix expression")
+            token::Expression::InfixExpression(ie) => {
+                let left = eval(WN::E(ie.left));
+                let right = eval(WN::E(ie.right));
+                if let (object::Object::Integer(left_obj), object::Object::Integer(right_obj)) =
+                    (left, right)
+                {
+                    match ie.operator.as_ref() {
+                        "+" => object::Object::Integer(object::Integer {
+                            value: left_obj.value + right_obj.value,
+                        }),
+                        "-" => object::Object::Integer(object::Integer {
+                            value: left_obj.value - right_obj.value,
+                        }),
+                        "*" => object::Object::Integer(object::Integer {
+                            value: left_obj.value * right_obj.value,
+                        }),
+                        "/" => object::Object::Integer(object::Integer {
+                            value: left_obj.value / right_obj.value,
+                        }),
+                        _ => panic!(
+                            "Unexpected operator `{}`, while evaling expression",
+                            ie.operator
+                        ),
+                    }
+                } else {
+                    NIL
+                }
             }
             token::Expression::Boolean(b) => {
                 // TODO: Check possible perf optimization? Needed?
@@ -134,6 +166,29 @@ mod tests {
 
         for (value, expected) in pairs {
             assert_boolean_object(run_eval(value), expected)
+        }
+    }
+
+    #[test]
+    fn test_prefix_negate_operator() {
+        let pairs = vec![("-1".to_string(), -1), ("--1".to_string(), 1)];
+
+        for (value, expected) in pairs {
+            assert_integer_object(run_eval(value), expected)
+        }
+    }
+
+    #[test]
+    fn test_integer_arithmetic() {
+        let pairs = vec![
+            ("1 + 1 + 1".to_string(), 3),
+            ("2 * 2 * 2".to_string(), 8),
+            ("4 / 2 * 2".to_string(), 4),
+            ("1 + 3 * 2".to_string(), 7),
+        ];
+
+        for (value, expected) in pairs {
+            assert_integer_object(run_eval(value), expected)
         }
     }
 
