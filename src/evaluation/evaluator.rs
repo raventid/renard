@@ -33,6 +33,14 @@ pub type WN = WrappedNode; // Just alias to avoid typing :)
 // For now we'll stick with design approach with WrappedNode.
 // Perhaps use From/Into modification?
 
+
+// To save some typing in creating basic object
+// we will use constants.
+
+const NIL : object::Object = object::Object::Nil(object::Nil {});
+const TRUE : object::Object = object::Object::Boolean(object::Boolean { value: true });
+const FALSE : object::Object = object::Object::Boolean(object::Boolean { value: false });
+
 pub fn eval(node: WN) -> object::Object {
     match node {
         WN::P(program) => eval_statements(program.statements),
@@ -48,13 +56,24 @@ pub fn eval(node: WN) -> object::Object {
                 object::Object::Integer(object::Integer { value: il.value })
             }
             token::Expression::Identifier(_i) => panic!("don't how to handle identifier"),
-            token::Expression::PrefixExpression(_pe) => {
-                panic!("don't how to handle prefix expression")
+            token::Expression::PrefixExpression(pe) => {
+                let right = eval(WN::E(pe.right));
+                match pe.operator.as_ref() {
+                    "!" => match right {
+                        TRUE => FALSE,
+                        FALSE => TRUE,
+                        NIL => TRUE,
+                        _ => FALSE,
+                    }
+                    _ => object::Object::Nil(object::Nil {}), // just nil, ok
+                }
             }
             token::Expression::InfixExpression(_ie) => {
                 panic!("don't how to handle infix expression")
             }
             token::Expression::Boolean(b) => {
+                // TODO: Check possible perf optimization? Needed?
+                // Reuse TRUE and FALSE I mean
                 object::Object::Boolean(object::Boolean { value: b.value })
             }
             token::Expression::IfExpression(_ie) => panic!("don't how to handle if expression"),
@@ -100,6 +119,22 @@ mod tests {
             let evaluated = run_eval(value);
             assert_boolean_object(evaluated, expected);
         })
+    }
+
+    #[test]
+    fn test_bang_operator() {
+        let pairs = vec![
+            ("!true".to_string(), false),
+            ("!false".to_string(), true),
+            ("!1".to_string(), false),
+            ("!!true".to_string(), true),
+            ("!!false".to_string(), false),
+            ("!!1".to_string(), true),
+        ];
+
+        for (value, expected) in pairs {
+            assert_boolean_object(run_eval(value), expected)
+        }
     }
 
     fn run_eval(source_code: String) -> evaluation::object::Object {

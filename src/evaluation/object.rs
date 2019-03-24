@@ -8,7 +8,7 @@ pub trait ObjectT {
 // **********************************************
 // * Interpreted object represanted as sum type *
 // **********************************************
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Object {
     Integer(Integer),
     Boolean(Boolean),
@@ -38,7 +38,7 @@ impl ObjectT for Object {
 // ************************************************
 
 // Integer value
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Integer {
     pub value: i32,
 }
@@ -54,7 +54,7 @@ impl ObjectT for Integer {
 }
 
 // Boolean value
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Boolean {
     pub value: bool,
 }
@@ -70,7 +70,7 @@ impl ObjectT for Boolean {
 }
 
 // Nil value (billion dollar mistake should be in every language, lol)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Nil {}
 
 impl ObjectT for Nil {
