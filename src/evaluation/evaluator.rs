@@ -94,6 +94,18 @@ pub fn eval(node: WN) -> object::Object {
                         "/" => object::Object::Integer(object::Integer {
                             value: left_obj.value / right_obj.value,
                         }),
+                        "<" => object::Object::Boolean(object::Boolean {
+                            value: left_obj.value < right_obj.value
+                        }),
+                        ">" => object::Object::Boolean(object::Boolean {
+                            value: left_obj.value > right_obj.value
+                        }),
+                        "==" => object::Object::Boolean(object::Boolean {
+                            value: left_obj.value == right_obj.value
+                        }),
+                        "!=" => object::Object::Boolean(object::Boolean {
+                            value: left_obj.value != right_obj.value
+                        }),
                         _ => panic!(
                             "Unexpected operator `{}`, while evaling expression",
                             ie.operator
@@ -145,7 +157,18 @@ mod tests {
 
     #[test]
     fn test_eval_boolean_expression() {
-        let pairs = vec![("true".to_string(), true), ("false".to_string(), false)];
+        let pairs = vec![
+            ("true".to_string(), true),
+            ("false".to_string(), false),
+            ("1 < 2".to_string(), true),
+            ("1 > 2".to_string(), false),
+            ("1 < 1".to_string(), false),
+            ("1 < 1".to_string(), false),
+            ("1 == 1".to_string(), true),
+            ("1 != 1".to_string(), false),
+            ("1 == 2".to_string(), false),
+            ("1 != 2".to_string(), true),
+        ];
 
         pairs.into_iter().for_each(|(value, expected)| {
             let evaluated = run_eval(value);
