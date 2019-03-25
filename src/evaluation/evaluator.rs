@@ -79,7 +79,7 @@ pub fn eval(node: WN) -> object::Object {
                 let left = eval(WN::E(ie.left));
                 let right = eval(WN::E(ie.right));
                 if let (object::Object::Integer(left_obj), object::Object::Integer(right_obj)) =
-                    (left, right)
+                    (left.clone(), right.clone())
                 {
                     match ie.operator.as_ref() {
                         "+" => object::Object::Integer(object::Integer {
@@ -111,6 +111,18 @@ pub fn eval(node: WN) -> object::Object {
                             ie.operator
                         ),
                     }
+                    // what if not boolean?
+                } else if let (object::Object::Boolean(left_obj), object::Object::Boolean(right_obj)) =
+                    (left, right) {
+                        match ie.operator.as_ref() {
+                            "==" => object::Object::Boolean(object::Boolean {
+                                value: left_obj.value == right_obj.value,
+                            }),
+                            "!=" => object::Object::Boolean(object::Boolean {
+                                value: left_obj.value != right_obj.value,
+                            }),
+                            _ => panic!("Unxepected operator applied to bool `{}`", ie.operator)
+                        }
                 } else {
                     NIL
                 }
@@ -168,6 +180,9 @@ mod tests {
             ("1 != 1".to_string(), false),
             ("1 == 2".to_string(), false),
             ("1 != 2".to_string(), true),
+            ("true == true".to_string(), true),
+            ("false == false".to_string(), true),
+            ("true == false".to_string(), false),
         ];
 
         pairs.into_iter().for_each(|(value, expected)| {
