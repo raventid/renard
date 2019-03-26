@@ -47,8 +47,9 @@ pub fn eval(node: WN) -> object::Object {
         WN::S(statement) => match statement {
             token::Statements::ExpressionStatement(expr) => eval(WN::E(expr.expression)),
             token::Statements::LetStatement(_) => panic!("don't know how to handle let statement"),
-            token::Statements::ReturnStatement(_) => {
-                panic!("don't know how to handle return statement")
+            token::Statements::ReturnStatement(rs) => {
+                let val = eval(WN::E(rs.return_value));
+                object::Object::ReturnValue(Box::new(object::ReturnValue { value: val }))
             }
         },
         WN::B(block) => eval_statements(block.statements),
@@ -171,12 +172,46 @@ fn is_truthy(cond: object::Object) -> bool {
 }
 
 pub fn eval_statements(statements: Vec<token::Statements>) -> object::Object {
-    // TODO: not sure we need unwrap here.
-    statements
-        .into_iter()
-        .map(|statement| eval(WN::S(statement)))
-        .last()
-        .unwrap()
+    // TODO: wow, impressive, I see your skill
+    let mut statements = statements.into_iter();
+    let mut size = statements.len();
+
+    let result = loop {
+        size = size - 1;
+        let statement = match statements.next() {
+            Some(statement) => statement,
+            None => panic!("eval_statement is badly broken"),
+        };
+
+        let result = eval(WN::S(statement));
+
+        // if statement is rendered into Return Value we have to
+        // interupt the execution and return this value.
+        match result.clone() {
+            object::Object::ReturnValue(ret_val) => break ret_val.value,
+            otherwise => (),
+        };
+
+        if size == 0 {
+            break result;
+        };
+    };
+
+    return result;
+
+    // for (position, statement) in statements.into_iter().enumerate() {
+    //     let result = eval(WN::S(statement));
+
+    //     let reutrn_reached = match result {
+    //         val @ object::Object::ReturnValue(_) => Some(val),
+    //         otherwise => None
+    //     }
+
+    //     // return last evaluated statement
+    //     if position == statements.len() {
+    //         break result
+    //     }
+    // }
 }
 
 #[cfg(test)]
@@ -277,6 +312,21 @@ mod tests {
                 Some(val) => assert_integer_object(evaluated, val),
                 None => assert_eq!(evaluated, evaluation::evaluator::NIL),
             }
+        }
+    }
+
+    #[test]
+    fn test_return_statement() {
+        let pairs = vec![
+            ("return 10;".to_string(), 10),
+            ("return 10;".to_string(), 10),
+            ("return 2 * 2; 69;".to_string(), 4),
+            ("4; return 2 * 3; 8".to_string(), 6),
+        ];
+
+        for (expression, expected) in pairs {
+            let evaluated = run_eval(expression);
+            assert_integer_object(evaluated, expected)
         }
     }
 

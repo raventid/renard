@@ -13,6 +13,7 @@ pub enum Object {
     Integer(Integer),
     Boolean(Boolean),
     Nil(Nil),
+    ReturnValue(Box<ReturnValue>),
 }
 
 impl ObjectT for Object {
@@ -21,6 +22,7 @@ impl ObjectT for Object {
             Object::Integer(i) => i.object_type(),
             Object::Boolean(b) => b.object_type(),
             Object::Nil(n) => n.object_type(),
+            Object::ReturnValue(rv) => rv.object_type(),
         }
     }
 
@@ -29,6 +31,7 @@ impl ObjectT for Object {
             Object::Integer(i) => i.inspect(),
             Object::Boolean(b) => b.inspect(),
             Object::Nil(n) => n.inspect(),
+            Object::ReturnValue(rv) => rv.inspect(),
         }
     }
 }
@@ -80,5 +83,21 @@ impl ObjectT for Nil {
 
     fn inspect(&self) -> String {
         "null".to_string()
+    }
+}
+
+// ReturnValue
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReturnValue {
+    pub value: Object,
+}
+
+impl ObjectT for ReturnValue {
+    fn object_type(&self) -> ObjectType {
+        "RETURN_VALUE".to_string()
+    }
+
+    fn inspect(&self) -> String {
+        self.value.inspect()
     }
 }
