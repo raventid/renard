@@ -198,20 +198,6 @@ pub fn eval_statements(statements: Vec<token::Statements>) -> object::Object {
     };
 
     return result;
-
-    // for (position, statement) in statements.into_iter().enumerate() {
-    //     let result = eval(WN::S(statement));
-
-    //     let reutrn_reached = match result {
-    //         val @ object::Object::ReturnValue(_) => Some(val),
-    //         otherwise => None
-    //     }
-
-    //     // return last evaluated statement
-    //     if position == statements.len() {
-    //         break result
-    //     }
-    // }
 }
 
 #[cfg(test)]
