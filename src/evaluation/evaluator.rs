@@ -19,6 +19,7 @@ pub enum WrappedNode {
     P(ast::Program),
     S(token::Statements),
     E(token::Expression),
+    B(token::BlockStatement), // special case for block statement
 }
 pub type WN = WrappedNode; // Just alias to avoid typing :)
 
@@ -36,9 +37,9 @@ pub type WN = WrappedNode; // Just alias to avoid typing :)
 // To save some typing in creating basic object
 // we will use constants.
 
-const NIL: object::Object = object::Object::Nil(object::Nil {});
-const TRUE: object::Object = object::Object::Boolean(object::Boolean { value: true });
-const FALSE: object::Object = object::Object::Boolean(object::Boolean { value: false });
+pub const NIL: object::Object = object::Object::Nil(object::Nil {});
+pub const TRUE: object::Object = object::Object::Boolean(object::Boolean { value: true });
+pub const FALSE: object::Object = object::Object::Boolean(object::Boolean { value: false });
 
 pub fn eval(node: WN) -> object::Object {
     match node {
@@ -50,6 +51,7 @@ pub fn eval(node: WN) -> object::Object {
                 panic!("don't know how to handle return statement")
             }
         },
+        WN::B(block) => eval_statements(block.statements),
         WN::E(expression) => match expression {
             token::Expression::IntegerLiteral(il) => {
                 object::Object::Integer(object::Integer { value: il.value })
@@ -112,6 +114,7 @@ pub fn eval(node: WN) -> object::Object {
                         ),
                     }
                     // what if not boolean?
+                    // TODO: maybe I should cover every option every time?
                 } else if let (object::Object::Boolean(left_obj), object::Object::Boolean(right_obj)) =
                     (left, right) {
                         match ie.operator.as_ref() {
@@ -132,12 +135,38 @@ pub fn eval(node: WN) -> object::Object {
                 // Reuse TRUE and FALSE I mean
                 object::Object::Boolean(object::Boolean { value: b.value })
             }
-            token::Expression::IfExpression(_ie) => panic!("don't how to handle if expression"),
+            token::Expression::IfExpression(ie) => {
+                let condition = eval(WN::E(ie.condition));
+
+                if is_truthy(condition) {
+                    eval(WN::B(ie.consequence))
+                } else {
+                    match ie.alternative {
+                        Some(alt) => eval(WN::B(alt)),
+                        None => NIL,
+                    }
+                }
+            },
             token::Expression::FunctionLiteral(_fl) => {
                 panic!("don't how to handle function literal")
             }
             token::Expression::CallExpression(_ce) => panic!("don't how to handle call expression"),
         },
+    }
+}
+
+// ************************************************
+// ************************************************
+// *********   HELPER FUNCTIONS   *****************
+// ************************************************
+// ************************************************
+
+fn is_truthy(cond: object::Object) -> bool {
+    match cond {
+        NIL => false,
+        TRUE => true,
+        FALSE => false,
+        _ => true,
     }
 }
 
@@ -227,6 +256,27 @@ mod tests {
 
         for (value, expected) in pairs {
             assert_integer_object(run_eval(value), expected)
+        }
+    }
+
+    #[test]
+    fn test_if_expression() {
+        let pairs = vec![
+            ("if (true) { 10 }".to_string(), Some(10)),
+            ("if (false) { 10 }".to_string(), None),
+            ("if (1) { 10 }".to_string(), Some(10)),
+            ("if (1 < 2) { 10 }".to_string(), Some(10)),
+            ("if (1 > 2) { 10 }".to_string(), None),
+            ("if (1 < 2) { 10 } else { 20 }".to_string(), Some(10)),
+            ("if (1 > 2) { 10 } else { 20 }".to_string(), Some(20)),
+        ];
+
+        for (expression, expected) in pairs {
+            let evaluated = run_eval(expression);
+            match expected {
+                Some(val) => assert_integer_object(evaluated, val),
+                None => assert_eq!(evaluated, evaluation::evaluator::NIL),
+            }
         }
     }
 
