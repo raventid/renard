@@ -43,7 +43,7 @@ pub const FALSE: object::Object = object::Object::Boolean(object::Boolean { valu
 
 pub fn eval(node: WN) -> object::Object {
     match node {
-        WN::P(program) => eval_statements(program.statements),
+        WN::P(program) => eval_program(program),
         WN::S(statement) => match statement {
             token::Statements::ExpressionStatement(expr) => eval(WN::E(expr.expression)),
             token::Statements::LetStatement(_) => panic!("don't know how to handle let statement"),
@@ -52,7 +52,7 @@ pub fn eval(node: WN) -> object::Object {
                 object::Object::ReturnValue(Box::new(object::ReturnValue { value: val }))
             }
         },
-        WN::B(block) => eval_statements(block.statements),
+        WN::B(block) => eval_block_statement(block.statements),
         WN::E(expression) => match expression {
             token::Expression::IntegerLiteral(il) => {
                 object::Object::Integer(object::Integer { value: il.value })
@@ -171,8 +171,9 @@ fn is_truthy(cond: object::Object) -> bool {
     }
 }
 
-pub fn eval_statements(statements: Vec<token::Statements>) -> object::Object {
+pub fn eval_program(program: ast::Program) -> object::Object {
     // TODO: wow, impressive, I see your skill
+    let statements = program.statements;
     let mut statements = statements.into_iter();
     let mut size = statements.len();
 
@@ -189,6 +190,36 @@ pub fn eval_statements(statements: Vec<token::Statements>) -> object::Object {
         // interupt the execution and return this value.
         match result.clone() {
             object::Object::ReturnValue(ret_val) => break ret_val.value,
+            otherwise => (),
+        };
+
+        if size == 0 {
+            break result;
+        };
+    };
+
+    return result;
+}
+
+pub fn eval_block_statement(statements: Vec<token::Statements>) -> object::Object {
+    // TODO: wow, impressive, I see your skill
+    let mut statements = statements.into_iter();
+    let mut size = statements.len();
+
+    let result = loop {
+        size = size - 1;
+        let statement = match statements.next() {
+            Some(statement) => statement,
+            None => panic!("eval_statement is badly broken"),
+        };
+
+        let result = eval(WN::S(statement));
+
+        // if statement is rendered into Return Value we have to
+        // interupt the execution and return this value.
+        match result.clone() {
+            // Do not unwrap return value. It will be unwraped at highest scope.
+            val @ object::Object::ReturnValue(_) => break val,
             otherwise => (),
         };
 
@@ -308,6 +339,15 @@ mod tests {
             ("return 10;".to_string(), 10),
             ("return 2 * 2; 69;".to_string(), 4),
             ("4; return 2 * 3; 8".to_string(), 6),
+            (r###"
+               if (2 > 1) {
+                 if (2 > 1) {
+                   return 999;
+                 }
+
+                 return 888;
+               }
+             "###.to_string(), 999)
         ];
 
         for (expression, expected) in pairs {
