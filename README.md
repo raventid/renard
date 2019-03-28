@@ -16,4 +16,6 @@ This project has nothing to do with Clojure programming language. Name clojurium
 - [ ] AOT compilation (via Rust as IR)
 - [ ] Concurrency via Fiber (aka stackful coroutines)
 - [ ] Advanced concurrency (structured concurrency)
+- [ ] Runtime optimizations
+- [ ] Standard library, tailored for network applications
 - [ ] Find a better name
