@@ -15,4 +15,5 @@ This project has nothing to do with Clojure programming language. Name clojurium
 - [ ] Virtual Machine with bytecode
 - [ ] AOT compilation (via Rust as IR)
 - [ ] Concurrency via Fiber (aka stackful coroutines)
+- [ ] Advanced concurrency (structured concurrency)
 - [ ] Find a better name
