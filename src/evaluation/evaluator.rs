@@ -110,7 +110,7 @@ pub fn eval(node: WN) -> object::Object {
                         "!=" => object::Object::Boolean(object::Boolean {
                             value: left_obj.value != right_obj.value
                         }),
-                        _ => new_error(format!("unknown operator: {}", ie.operator))
+                        _ => new_error(format!("unknown operator: INTEGER {} INTEGER", ie.operator))
                     }
                     // what if not boolean?
                     // TODO: maybe I should cover every option every time?
@@ -123,7 +123,7 @@ pub fn eval(node: WN) -> object::Object {
                             "!=" => object::Object::Boolean(object::Boolean {
                                 value: left_obj.value != right_obj.value,
                             }),
-                            _ => new_error(format!("unknown operator: {}", ie.operator))
+                            _ => new_error(format!("unknown operator: BOOLEAN {} BOOLEAN", ie.operator))
                         }
                 } else {
                         new_error(format!("type mismatch: {} {} {}", left.object_type(), ie.operator, right.object_type()))
@@ -194,6 +194,7 @@ pub fn eval_program(program: ast::Program) -> object::Object {
         // interupt the execution and return this value.
         match result.clone() {
             object::Object::ReturnValue(ret_val) => break ret_val.value,
+            err @ object::Object::Error(_) => break err,
             otherwise => (),
         };
 
@@ -224,6 +225,7 @@ pub fn eval_block_statement(statements: Vec<token::Statements>) -> object::Objec
         match result.clone() {
             // Do not unwrap return value. It will be unwraped at highest scope.
             val @ object::Object::ReturnValue(_) => break val,
+            err @ object::Object::Error(_) => break err,
             otherwise => (),
         };
 
@@ -364,8 +366,8 @@ mod tests {
     fn test_error_handling() {
         let pairs = vec![
             ("2 + true;".to_string(), "type mismatch: INTEGER + BOOLEAN".to_string()),
-            ("2 + true; 999".to_string(), "type mismatch: BOOLEAN + BOOLEAN".to_string()),
-            ("-true;".to_string(), "unknown operator: BOOLEAN + BOOLEAN".to_string()),
+            ("2 + true; 999".to_string(), "type mismatch: INTEGER + BOOLEAN".to_string()),
+            ("-true;".to_string(), "unknown operator: -BOOLEAN".to_string()),
             ("false + true;".to_string(), "unknown operator: BOOLEAN + BOOLEAN".to_string()),
             (r###"
                if (2 > 1) {
