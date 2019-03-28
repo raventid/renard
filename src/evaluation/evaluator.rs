@@ -50,6 +50,11 @@ pub fn eval(node: WN) -> object::Object {
             token::Statements::LetStatement(_) => panic!("don't know how to handle let statement"),
             token::Statements::ReturnStatement(rs) => {
                 let val = eval(WN::E(rs.return_value));
+                // TODO: Do I really need this?
+                // Maybe move this plumbing somewhere else?
+                if is_error(&val) {
+                    return val;
+                }
                 object::Object::ReturnValue(Box::new(object::ReturnValue { value: val }))
             }
         },
@@ -61,6 +66,9 @@ pub fn eval(node: WN) -> object::Object {
             token::Expression::Identifier(_i) => panic!("don't how to handle identifier"),
             token::Expression::PrefixExpression(pe) => {
                 let right = eval(WN::E(pe.right));
+                if is_error(&right) {
+                    return right;
+                }
                 match pe.operator.as_ref() {
                     "!" => match right {
                         TRUE => FALSE,
@@ -81,7 +89,13 @@ pub fn eval(node: WN) -> object::Object {
             }
             token::Expression::InfixExpression(ie) => {
                 let left = eval(WN::E(ie.left));
+                if is_error(&left) {
+                    return left;
+                }
                 let right = eval(WN::E(ie.right));
+                if is_error(&right) {
+                    return right;
+                }
                 if let (object::Object::Integer(left_obj), object::Object::Integer(right_obj)) =
                     (left.clone(), right.clone())
                 {
@@ -136,6 +150,9 @@ pub fn eval(node: WN) -> object::Object {
             }
             token::Expression::IfExpression(ie) => {
                 let condition = eval(WN::E(ie.condition));
+                if is_error(&condition) {
+                    return condition;
+                }
 
                 if is_truthy(condition) {
                     eval(WN::B(ie.consequence))
@@ -166,6 +183,13 @@ fn is_truthy(cond: object::Object) -> bool {
         TRUE => true,
         FALSE => false,
         _ => true,
+    }
+}
+
+fn is_error(potential_error: &object::Object) -> bool {
+    match potential_error {
+        object::Object::Error(_) => true,
+        _ => false,
     }
 }
 
