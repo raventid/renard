@@ -1,5 +1,6 @@
 use crate::ast;
 use crate::evaluation::object;
+use crate::evaluation::object::ObjectT;
 use crate::lexer;
 use crate::parser;
 use crate::token;
@@ -73,9 +74,9 @@ pub fn eval(node: WN) -> object::Object {
                                 value: -int_obj.value,
                             })
                         }
-                        _ => NIL, // terrible semantics
+                        _ => new_error(format!("unknown operator: -{}", right.object_type()))
                     },
-                    _ => object::Object::Nil(object::Nil {}), // just nil, ok
+                    _ => new_error(format!("unknown operator: {} {}", pe.operator, right.object_type()))
                 }
             }
             token::Expression::InfixExpression(ie) => {
@@ -109,15 +110,12 @@ pub fn eval(node: WN) -> object::Object {
                         "!=" => object::Object::Boolean(object::Boolean {
                             value: left_obj.value != right_obj.value
                         }),
-                        _ => panic!(
-                            "Unexpected operator `{}`, while evaling expression",
-                            ie.operator
-                        ),
+                        _ => new_error(format!("unknown operator: {}", ie.operator))
                     }
                     // what if not boolean?
                     // TODO: maybe I should cover every option every time?
                 } else if let (object::Object::Boolean(left_obj), object::Object::Boolean(right_obj)) =
-                    (left, right) {
+                    (left.clone(), right.clone()) {
                         match ie.operator.as_ref() {
                             "==" => object::Object::Boolean(object::Boolean {
                                 value: left_obj.value == right_obj.value,
@@ -125,10 +123,10 @@ pub fn eval(node: WN) -> object::Object {
                             "!=" => object::Object::Boolean(object::Boolean {
                                 value: left_obj.value != right_obj.value,
                             }),
-                            _ => panic!("Unxepected operator applied to bool `{}`", ie.operator)
+                            _ => new_error(format!("unknown operator: {}", ie.operator))
                         }
                 } else {
-                    NIL
+                        new_error(format!("type mismatch: {} {} {}", left.object_type(), ie.operator, right.object_type()))
                 }
             }
             token::Expression::Boolean(b) => {
@@ -169,6 +167,12 @@ fn is_truthy(cond: object::Object) -> bool {
         FALSE => false,
         _ => true,
     }
+}
+
+fn new_error(formated_string: String) -> object::Object {
+    object::Object::Error(object::Error {
+        message: formated_string,
+    })
 }
 
 pub fn eval_program(program: ast::Program) -> object::Object {
@@ -353,6 +357,33 @@ mod tests {
         for (expression, expected) in pairs {
             let evaluated = run_eval(expression);
             assert_integer_object(evaluated, expected)
+        }
+    }
+
+    #[test]
+    fn test_error_handling() {
+        let pairs = vec![
+            ("2 + true;".to_string(), "type mismatch: INTEGER + BOOLEAN".to_string()),
+            ("2 + true; 999".to_string(), "type mismatch: BOOLEAN + BOOLEAN".to_string()),
+            ("-true;".to_string(), "unknown operator: BOOLEAN + BOOLEAN".to_string()),
+            ("false + true;".to_string(), "unknown operator: BOOLEAN + BOOLEAN".to_string()),
+            (r###"
+               if (2 > 1) {
+                 if (2 > 1) {
+                   return true + false;
+                 }
+
+                 return 888;
+               }
+             "###.to_string(), "unknown operator: BOOLEAN + BOOLEAN".to_string()),
+        ];
+
+        for (expression, expected) in pairs {
+            let evaluated = run_eval(expression);
+            match evaluated {
+                evaluation::object::Object::Error(err) => assert_eq!(err.message, expected),
+                _ => panic!("expected error message, got {:?}", evaluated),
+            }
         }
     }
 
