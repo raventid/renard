@@ -429,6 +429,8 @@ mod tests {
                  return 888;
                }
              "###.to_string(), "unknown operator: BOOLEAN + BOOLEAN".to_string()),
+            // Check if we error on unknown identifier,
+            // it's related to `test_let_statement()`
             ("unknown_bebe".to_string(), "identifier not found: unknown_bebe".to_string()),
         ];
 
