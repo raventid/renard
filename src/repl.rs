@@ -9,9 +9,11 @@ use std::collections::HashMap;
 const PROMPT: &str = "clojurium $ ";
 
 pub fn start() {
+    let mut env = environment::Environment::new();
+
     loop {
         let mut user_input = String::new();
-        let mut env = environment::Environment::new();
+
         print!("{}", PROMPT);
 
         let _ = stdout().flush();

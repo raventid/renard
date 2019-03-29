@@ -1,3 +1,6 @@
+use crate::evaluation::environment;
+use crate::token;
+
 type ObjectType = String;
 
 pub trait ObjectT {
@@ -118,5 +121,33 @@ impl ObjectT for Error {
 
     fn inspect(&self) -> String {
         self.message.to_string()
+    }
+}
+
+// Function object
+#[derive(Debug, Clone)]
+pub struct Function {
+    pub parameters: Option<Vec<token::Identifier>>,
+    pub body: token::BlockStatement,
+    pub env: environment::Environment,
+}
+
+impl ObjectT for Function {
+    fn object_type(&self) -> ObjectType {
+        "FUNCTION".to_string()
+    }
+
+    fn inspect(&self) -> String {
+        use ast::Node;
+        let params = match self.parameters.clone() {
+            Some(params) => params
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join(","),
+            None => "".to_string(),
+        };
+
+        write!(f, "{}({}){{{}}}", self.token_literal(), params, self.body)
     }
 }
