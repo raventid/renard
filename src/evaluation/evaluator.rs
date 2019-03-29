@@ -50,8 +50,8 @@ pub fn eval(node: WN) -> object::Object {
             token::Statements::LetStatement(_) => panic!("don't know how to handle let statement"),
             token::Statements::ReturnStatement(rs) => {
                 let val = eval(WN::E(rs.return_value));
-                // TODO: Do I really need this?
-                // Maybe move this plumbing somewhere else?
+                // To see, why this early return is important look at the
+                // test case `test_error_handling`.
                 if is_error(&val) {
                     return val;
                 }
@@ -402,6 +402,21 @@ mod tests {
                  return 888;
                }
              "###.to_string(), "unknown operator: BOOLEAN + BOOLEAN".to_string()),
+            // This example checks if we stop evaling embedded path
+            // and return first error.
+            // In any compound AST component we have to stop evaluation
+            // right after we encounter error.
+            // In case we do not do this, we'll receive here an error like
+            // `unknown operator: -BOOLEAN`, which is wrong.
+            (r###"
+               if (true + true) {
+                 if (2 > 1) {
+                   return -false;
+                 }
+
+                 return 888;
+               }
+             "###.to_string(), "unknown operator: BOOLEAN + BOOLEAN".to_string())
         ];
 
         for (expression, expected) in pairs {
