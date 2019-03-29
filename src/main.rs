@@ -8,6 +8,7 @@ mod parser;
 mod evaluation {
     pub mod object;
     pub mod evaluator;
+    pub mod environment;
 }
 
 fn main() {

@@ -1,6 +1,7 @@
 use crate::ast;
 use crate::evaluation::object;
 use crate::evaluation::object::ObjectT;
+use crate::evaluation::environment;
 use crate::lexer;
 use crate::parser;
 use crate::token;
@@ -42,14 +43,20 @@ pub const NIL: object::Object = object::Object::Nil(object::Nil {});
 pub const TRUE: object::Object = object::Object::Boolean(object::Boolean { value: true });
 pub const FALSE: object::Object = object::Object::Boolean(object::Boolean { value: false });
 
-pub fn eval(node: WN) -> object::Object {
+pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
     match node {
-        WN::P(program) => eval_program(program),
+        WN::P(program) => eval_program(program, env),
         WN::S(statement) => match statement {
-            token::Statements::ExpressionStatement(expr) => eval(WN::E(expr.expression)),
-            token::Statements::LetStatement(_) => panic!("don't know how to handle let statement"),
+            token::Statements::ExpressionStatement(expr) => eval(WN::E(expr.expression), env),
+            token::Statements::LetStatement(ls) => {
+                let val = eval(WN::E(ls.value), env);
+                if is_error(&val) {
+                    return val;
+                };
+                env.set(ls.name.value, val).clone() // Hmmmmmmmmmmmm, change signature? To avoid cloning? Should work.
+            },
             token::Statements::ReturnStatement(rs) => {
-                let val = eval(WN::E(rs.return_value));
+                let val = eval(WN::E(rs.return_value), env);
                 // To see, why this early return is important look at the
                 // test case `test_error_handling`.
                 if is_error(&val) {
@@ -58,14 +65,19 @@ pub fn eval(node: WN) -> object::Object {
                 object::Object::ReturnValue(Box::new(object::ReturnValue { value: val }))
             }
         },
-        WN::B(block) => eval_block_statement(block.statements),
+        WN::B(block) => eval_block_statement(block.statements, env),
         WN::E(expression) => match expression {
             token::Expression::IntegerLiteral(il) => {
                 object::Object::Integer(object::Integer { value: il.value })
             }
-            token::Expression::Identifier(_i) => panic!("don't how to handle identifier"),
+            token::Expression::Identifier(i) => {
+                match env.get(i.value.clone()) {
+                    Some(value) => value.clone(), // Cloning one more time... Signature, sir?
+                    None => new_error(format!("identifier not found: {}", i.value)),
+                }
+            },
             token::Expression::PrefixExpression(pe) => {
-                let right = eval(WN::E(pe.right));
+                let right = eval(WN::E(pe.right), env);
                 if is_error(&right) {
                     return right;
                 }
@@ -88,11 +100,11 @@ pub fn eval(node: WN) -> object::Object {
                 }
             }
             token::Expression::InfixExpression(ie) => {
-                let left = eval(WN::E(ie.left));
+                let left = eval(WN::E(ie.left), env);
                 if is_error(&left) {
                     return left;
                 }
-                let right = eval(WN::E(ie.right));
+                let right = eval(WN::E(ie.right), env);
                 if is_error(&right) {
                     return right;
                 }
@@ -149,16 +161,16 @@ pub fn eval(node: WN) -> object::Object {
                 object::Object::Boolean(object::Boolean { value: b.value })
             }
             token::Expression::IfExpression(ie) => {
-                let condition = eval(WN::E(ie.condition));
+                let condition = eval(WN::E(ie.condition), env);
                 if is_error(&condition) {
                     return condition;
                 }
 
                 if is_truthy(condition) {
-                    eval(WN::B(ie.consequence))
+                    eval(WN::B(ie.consequence), env)
                 } else {
                     match ie.alternative {
-                        Some(alt) => eval(WN::B(alt)),
+                        Some(alt) => eval(WN::B(alt), env),
                         None => NIL,
                     }
                 }
@@ -199,7 +211,7 @@ fn new_error(formated_string: String) -> object::Object {
     })
 }
 
-pub fn eval_program(program: ast::Program) -> object::Object {
+pub fn eval_program(program: ast::Program, env: &mut environment::Environment) -> object::Object {
     // TODO: wow, impressive, I see your skill
     let statements = program.statements;
     let mut statements = statements.into_iter();
@@ -212,7 +224,7 @@ pub fn eval_program(program: ast::Program) -> object::Object {
             None => panic!("eval_statement is badly broken"),
         };
 
-        let result = eval(WN::S(statement));
+        let result = eval(WN::S(statement), env);
 
         // if statement is rendered into Return Value we have to
         // interupt the execution and return this value.
@@ -230,7 +242,7 @@ pub fn eval_program(program: ast::Program) -> object::Object {
     return result;
 }
 
-pub fn eval_block_statement(statements: Vec<token::Statements>) -> object::Object {
+pub fn eval_block_statement(statements: Vec<token::Statements>, env: &mut environment::Environment) -> object::Object {
     // TODO: wow, impressive, I see your skill
     let mut statements = statements.into_iter();
     let mut size = statements.len();
@@ -242,7 +254,7 @@ pub fn eval_block_statement(statements: Vec<token::Statements>) -> object::Objec
             None => panic!("eval_statement is badly broken"),
         };
 
-        let result = eval(WN::S(statement));
+        let result = eval(WN::S(statement), env);
 
         // if statement is rendered into Return Value we have to
         // interupt the execution and return this value.
@@ -250,7 +262,7 @@ pub fn eval_block_statement(statements: Vec<token::Statements>) -> object::Objec
             // Do not unwrap return value. It will be unwraped at highest scope.
             val @ object::Object::ReturnValue(_) => break val,
             err @ object::Object::Error(_) => break err,
-            otherwise => (),
+            _ => (),
         };
 
         if size == 0 {
@@ -416,7 +428,8 @@ mod tests {
 
                  return 888;
                }
-             "###.to_string(), "unknown operator: BOOLEAN + BOOLEAN".to_string())
+             "###.to_string(), "unknown operator: BOOLEAN + BOOLEAN".to_string()),
+            ("unknown_bebe".to_string(), "identifier not found: unknown_bebe".to_string()),
         ];
 
         for (expression, expected) in pairs {
@@ -425,6 +438,20 @@ mod tests {
                 evaluation::object::Object::Error(err) => assert_eq!(err.message, expected),
                 _ => panic!("expected error message, got {:?}", evaluated),
             }
+        }
+    }
+
+    #[test]
+    fn test_let_statement() {
+        let pairs = vec![
+            ("let bebe = 1; bebe;".to_string(), 1),
+            ("let bebe = 1 * 2; bebe;".to_string(), 2),
+            ("let a = 1; let b = 2; let c = a + b; c;".to_string(), 3),
+        ];
+
+        for (expression, expected) in pairs {
+            let evaluated = run_eval(expression);
+            assert_integer_object(evaluated, expected);
         }
     }
 
@@ -440,7 +467,9 @@ mod tests {
 
         let program = parser.parse_program(&lambda_parsers);
 
-        evaluation::evaluator::eval(evaluation::evaluator::WN::P(program))
+        let mut env = evaluation::environment::Environment::new();
+
+        evaluation::evaluator::eval(evaluation::evaluator::WN::P(program), &mut env)
     }
 
     fn assert_integer_object(object: evaluation::object::Object, expected: i32) {

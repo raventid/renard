@@ -1,6 +1,7 @@
 use crate::lexer;
 use crate::parser;
 use crate::evaluation::evaluator;
+use crate::evaluation::environment;
 use crate::evaluation::object::ObjectT;
 use std::io::{stdin, stdout, Write};
 use std::collections::HashMap;
@@ -10,6 +11,7 @@ const PROMPT: &str = "clojurium $ ";
 pub fn start() {
     loop {
         let mut user_input = String::new();
+        let mut env = environment::Environment::new();
         print!("{}", PROMPT);
 
         let _ = stdout().flush();
@@ -57,7 +59,7 @@ pub fn start() {
                 println!("parser error: {}", error);
             }
         } else {
-            let evaluated = evaluator::eval(evaluator::WN::P(program));
+            let evaluated = evaluator::eval(evaluator::WN::P(program), &mut env);
             println!("{}", evaluated.inspect())
         }
     }
