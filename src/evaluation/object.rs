@@ -147,6 +147,6 @@ impl ObjectT for Function {
             None => "".to_string(),
         };
 
-        format!("fn({}){{{}}}", params, self.body)
+        format!("fn({}) {{{}}}", params, self.body)
     }
 }
