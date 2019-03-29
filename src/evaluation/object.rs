@@ -138,7 +138,6 @@ impl ObjectT for Function {
     }
 
     fn inspect(&self) -> String {
-        use ast::Node;
         let params = match self.parameters.clone() {
             Some(params) => params
                 .iter()
@@ -148,6 +147,6 @@ impl ObjectT for Function {
             None => "".to_string(),
         };
 
-        write!(f, "{}({}){{{}}}", self.token_literal(), params, self.body)
+        format!("fn({}){{{}}}", params, self.body)
     }
 }
