@@ -606,6 +606,8 @@ mod tests {
             ("let id = fn(a) { a; }; id(1);".to_string(), 1),
             ("let id = fn(a) { return a; }; id(1);".to_string(), 1),
             ("let id = fn(a) { a; }(1);".to_string(), 1),
+            // TODO: not a function called
+            // TODO: wrong number of arguments passed
         ];
 
         for (expression, expected) in pairs {
