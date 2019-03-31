@@ -13,6 +13,7 @@ This project has nothing to do with Clojure programming language. Name clojurium
 - [ ] Simple Interpreter
 - [ ] REPL
 - [ ] Virtual Machine with bytecode
+- [ ] Low pause GC
 - [ ] AOT compilation (via Rust as IR)
 - [ ] Basic concurrency via Fiber (aka stackful coroutines)
 - [ ] Advanced concurrency (structured concurrency)
