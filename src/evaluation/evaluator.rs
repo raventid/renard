@@ -1,7 +1,7 @@
 use crate::ast;
+use crate::evaluation::environment;
 use crate::evaluation::object;
 use crate::evaluation::object::ObjectT;
-use crate::evaluation::environment;
 use crate::lexer;
 use crate::parser;
 use crate::token;
@@ -54,7 +54,7 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
                     return val;
                 };
                 env.set(ls.name.value, val).clone() // Hmmmmmmmmmmmm, change signature? To avoid cloning? Should work.
-            },
+            }
             token::Statements::ReturnStatement(rs) => {
                 let val = eval(WN::E(rs.return_value), env);
                 // To see, why this early return is important look at the
@@ -75,7 +75,7 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
                     Some(value) => value.clone(), // Cloning one more time... Signature, sir?
                     None => new_error(format!("identifier not found: {}", i.value)),
                 }
-            },
+            }
             token::Expression::PrefixExpression(pe) => {
                 let right = eval(WN::E(pe.right), env);
                 if is_error(&right) {
@@ -94,9 +94,13 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
                                 value: -int_obj.value,
                             })
                         }
-                        _ => new_error(format!("unknown operator: -{}", right.object_type()))
+                        _ => new_error(format!("unknown operator: -{}", right.object_type())),
                     },
-                    _ => new_error(format!("unknown operator: {} {}", pe.operator, right.object_type()))
+                    _ => new_error(format!(
+                        "unknown operator: {} {}",
+                        pe.operator,
+                        right.object_type()
+                    )),
                 }
             }
             token::Expression::InfixExpression(ie) => {
@@ -125,41 +129,53 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
                             value: left_obj.value / right_obj.value,
                         }),
                         "<" => object::Object::Boolean(object::Boolean {
-                            value: left_obj.value < right_obj.value
+                            value: left_obj.value < right_obj.value,
                         }),
                         ">" => object::Object::Boolean(object::Boolean {
-                            value: left_obj.value > right_obj.value
+                            value: left_obj.value > right_obj.value,
                         }),
                         "==" => object::Object::Boolean(object::Boolean {
-                            value: left_obj.value == right_obj.value
+                            value: left_obj.value == right_obj.value,
                         }),
                         "!=" => object::Object::Boolean(object::Boolean {
-                            value: left_obj.value != right_obj.value
+                            value: left_obj.value != right_obj.value,
                         }),
-                        _ => new_error(format!("unknown operator: INTEGER {} INTEGER", ie.operator))
-                    }
-                    // what if not boolean?
-                    // TODO: maybe I should cover every option every time?
-                } else if let (object::Object::Boolean(left_obj), object::Object::Boolean(right_obj)) =
-                    (left.clone(), right.clone()) {
-                        match ie.operator.as_ref() {
-                            "==" => object::Object::Boolean(object::Boolean {
-                                value: left_obj.value == right_obj.value,
-                            }),
-                            "!=" => object::Object::Boolean(object::Boolean {
-                                value: left_obj.value != right_obj.value,
-                            }),
-                            _ => new_error(format!("unknown operator: BOOLEAN {} BOOLEAN", ie.operator))
+                        _ => {
+                            new_error(format!("unknown operator: INTEGER {} INTEGER", ie.operator))
                         }
+                    }
+                // what if not boolean?
+                // TODO: maybe I should cover every option every time?
+                } else if let (
+                    object::Object::Boolean(left_obj),
+                    object::Object::Boolean(right_obj),
+                ) = (left.clone(), right.clone())
+                {
+                    match ie.operator.as_ref() {
+                        "==" => object::Object::Boolean(object::Boolean {
+                            value: left_obj.value == right_obj.value,
+                        }),
+                        "!=" => object::Object::Boolean(object::Boolean {
+                            value: left_obj.value != right_obj.value,
+                        }),
+                        _ => {
+                            new_error(format!("unknown operator: BOOLEAN {} BOOLEAN", ie.operator))
+                        }
+                    }
                 } else {
-                        new_error(format!("type mismatch: {} {} {}", left.object_type(), ie.operator, right.object_type()))
+                    new_error(format!(
+                        "type mismatch: {} {} {}",
+                        left.object_type(),
+                        ie.operator,
+                        right.object_type()
+                    ))
                 }
-            }
+            },
             token::Expression::Boolean(b) => {
                 // TODO: Check possible perf optimization? Needed?
                 // Reuse TRUE and FALSE I mean
                 object::Object::Boolean(object::Boolean { value: b.value })
-            }
+            },
             token::Expression::IfExpression(ie) => {
                 let condition = eval(WN::E(ie.condition), env);
                 if is_error(&condition) {
@@ -175,10 +191,34 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
                     }
                 }
             },
-            token::Expression::FunctionLiteral(_fl) => {
-                panic!("don't how to handle function literal")
-            }
-            token::Expression::CallExpression(_ce) => panic!("don't how to handle call expression"),
+            token::Expression::FunctionLiteral(fl) => {
+                let parameters = fl.parameters;
+                let body = fl.body;
+                // should I link to to this env or use copy of it
+                object::Object::Function(object::Function {
+                    parameters,
+                    body,
+                    env: env.clone(),
+                })
+            },
+            token::Expression::CallExpression(ce) => {
+                let fun = eval(WN::E(ce.function), env);
+                if is_error(&fun) {
+                    return fun;
+                }
+
+                // first, eval arguments
+                let args = match ce.arguments {
+                    Some(args) => eval_expressions(args, env),
+                    None => eval_expressions(Vec::new(), env),
+                };
+
+                if args.len() == 1 && is_error(&args[0]) {
+                    return args[0].clone()
+                }
+
+                apply_function(fun, args)
+            },
         },
     }
 }
@@ -242,8 +282,12 @@ pub fn eval_program(program: ast::Program, env: &mut environment::Environment) -
     return result;
 }
 
-pub fn eval_block_statement(statements: Vec<token::Statements>, env: &mut environment::Environment) -> object::Object {
+pub fn eval_block_statement(
+    statements: Vec<token::Statements>,
+    env: &mut environment::Environment,
+) -> object::Object {
     // TODO: wow, impressive, I see your skill
+    // Maybe smth like this `iter.take_while(Result::is_ok).last().map(Result::unwrap)` ?
     let mut statements = statements.into_iter();
     let mut size = statements.len();
 
@@ -271,6 +315,57 @@ pub fn eval_block_statement(statements: Vec<token::Statements>, env: &mut enviro
     };
 
     return result;
+}
+
+fn eval_expressions(
+    expressions: Vec<token::Expression>,
+    env: &mut environment::Environment,
+) -> Vec<object::Object> {
+        // https://stackoverflow.com/questions/26368288/how-do-i-stop-iteration-and-return-an-error-when-iteratormap-returns-a-result
+        let evaluated: Result<Vec<_>, _> = expressions.into_iter().map(|expression| {
+            let evaluated = eval(WN::E(expression), env);
+            if is_error(&evaluated) {
+                Err(evaluated)
+            } else {
+                Ok(evaluated)
+            }
+        }).collect();
+
+    match evaluated {
+        Ok(vals) => vals,
+        Err(val) => vec![val],
+    }
+}
+
+fn apply_function(fun: object::Object, args: Vec<object::Object>) -> object::Object {
+    match fun {
+        object::Object::Function(fun) => {
+            let mut extended_env = extend_function_env(fun.clone(), args);
+            let evaluated = eval(WN::B(fun.body), &mut extended_env);
+            unwrap_return_value(evaluated)
+        },
+        _ => new_error(format!("not a function: {}", fun.object_type())),
+    }
+}
+
+fn extend_function_env(fun: object::Function, args: Vec<object::Object>) -> environment::Environment {
+    let mut env = environment::Environment::new_enclosed_environment(fun.env);
+    match fun.parameters {
+        Some(params) => {
+            for (param, arg) in params.into_iter().zip(args.into_iter()) {
+                env.set(param.value, arg);
+            }
+            env
+        },
+        None => env,
+    }
+}
+
+fn unwrap_return_value(obj: object::Object) -> object::Object {
+    match obj {
+        object::Object::ReturnValue(ret_val) => ret_val.value,
+        _ => obj,
+    }
 }
 
 #[cfg(test)]
@@ -381,7 +476,8 @@ mod tests {
             ("return 10;".to_string(), 10),
             ("return 2 * 2; 69;".to_string(), 4),
             ("4; return 2 * 3; 8".to_string(), 6),
-            (r###"
+            (
+                r###"
                if (2 > 1) {
                  if (2 > 1) {
                    return 999;
@@ -389,7 +485,10 @@ mod tests {
 
                  return 888;
                }
-             "###.to_string(), 999)
+             "###
+                .to_string(),
+                999,
+            ),
         ];
 
         for (expression, expected) in pairs {
@@ -401,11 +500,24 @@ mod tests {
     #[test]
     fn test_error_handling() {
         let pairs = vec![
-            ("2 + true;".to_string(), "type mismatch: INTEGER + BOOLEAN".to_string()),
-            ("2 + true; 999".to_string(), "type mismatch: INTEGER + BOOLEAN".to_string()),
-            ("-true;".to_string(), "unknown operator: -BOOLEAN".to_string()),
-            ("false + true;".to_string(), "unknown operator: BOOLEAN + BOOLEAN".to_string()),
-            (r###"
+            (
+                "2 + true;".to_string(),
+                "type mismatch: INTEGER + BOOLEAN".to_string(),
+            ),
+            (
+                "2 + true; 999".to_string(),
+                "type mismatch: INTEGER + BOOLEAN".to_string(),
+            ),
+            (
+                "-true;".to_string(),
+                "unknown operator: -BOOLEAN".to_string(),
+            ),
+            (
+                "false + true;".to_string(),
+                "unknown operator: BOOLEAN + BOOLEAN".to_string(),
+            ),
+            (
+                r###"
                if (2 > 1) {
                  if (2 > 1) {
                    return true + false;
@@ -413,14 +525,18 @@ mod tests {
 
                  return 888;
                }
-             "###.to_string(), "unknown operator: BOOLEAN + BOOLEAN".to_string()),
+             "###
+                .to_string(),
+                "unknown operator: BOOLEAN + BOOLEAN".to_string(),
+            ),
             // This example checks if we stop evaling embedded path
             // and return first error.
             // In any compound AST component we have to stop evaluation
             // right after we encounter error.
             // In case we do not do this, we'll receive here an error like
             // `unknown operator: -BOOLEAN`, which is wrong.
-            (r###"
+            (
+                r###"
                if (true + true) {
                  if (2 > 1) {
                    return -false;
@@ -428,10 +544,16 @@ mod tests {
 
                  return 888;
                }
-             "###.to_string(), "unknown operator: BOOLEAN + BOOLEAN".to_string()),
+             "###
+                .to_string(),
+                "unknown operator: BOOLEAN + BOOLEAN".to_string(),
+            ),
             // Check if we error on unknown identifier,
             // it's related to `test_let_statement()`
-            ("unknown_bebe".to_string(), "identifier not found: unknown_bebe".to_string()),
+            (
+                "unknown_bebe".to_string(),
+                "identifier not found: unknown_bebe".to_string(),
+            ),
         ];
 
         for (expression, expected) in pairs {
@@ -454,6 +576,40 @@ mod tests {
         for (expression, expected) in pairs {
             let evaluated = run_eval(expression);
             assert_integer_object(evaluated, expected);
+        }
+    }
+
+    #[test]
+    fn test_function_object() {
+        let input = "fn(x) { x + 1; }".to_string();
+
+        let evaluated = run_eval(input);
+
+        let fun = match evaluated {
+            evaluation::object::Object::Function(fo) => fo,
+            _ => panic!("expected function object, got {:?}", evaluated),
+        };
+
+        let params = match fun.parameters {
+            Some(params) => params,
+            None => panic!("expected to find params, but failed"),
+        };
+
+        assert_eq!(params.len(), 1);
+        assert_eq!(params[0].to_string(), "x".to_string());
+        assert_eq!(fun.body.to_string(), "(x + 1)".to_string());
+    }
+
+    #[test]
+    fn test_function_application() {
+        let pairs = vec![
+            ("let id = fn(a) { a; }; id(1);".to_string(), 1),
+            ("let id = fn(a) { return a; }; id(1);".to_string(), 1),
+            ("let id = fn(a) { a; }(1);".to_string(), 1),
+        ];
+
+        for (expression, expected) in pairs {
+            assert_integer_object(run_eval(expression), expected)
         }
     }
 

@@ -205,7 +205,7 @@ impl ast::Node for Identifier {
 
 impl fmt::Display for Identifier {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", "IDENTIFIER_DISPLAY_IMPLEMENTATION")
+        write!(f, "{}", self.value)
     }
 }
 

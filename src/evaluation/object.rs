@@ -18,6 +18,7 @@ pub enum Object {
     Nil(Nil),
     ReturnValue(Box<ReturnValue>),
     Error(Error),
+    Function(Function),
 }
 
 impl ObjectT for Object {
@@ -28,6 +29,7 @@ impl ObjectT for Object {
             Object::Nil(n) => n.object_type(),
             Object::ReturnValue(rv) => rv.object_type(),
             Object::Error(err) => err.object_type(),
+            Object::Function(fun) => fun.object_type(),
         }
     }
 
@@ -38,6 +40,7 @@ impl ObjectT for Object {
             Object::Nil(n) => n.inspect(),
             Object::ReturnValue(rv) => rv.inspect(),
             Object::Error(err) => err.inspect(),
+            Object::Function(fun) => fun.inspect(),
         }
     }
 }
@@ -131,6 +134,15 @@ pub struct Function {
     pub body: token::BlockStatement,
     pub env: environment::Environment,
 }
+
+// Functions are never equal.
+// It's like NaN.
+impl PartialEq for Function {
+    fn eq(&self, other: &Function) -> bool {
+        false
+    }
+}
+impl Eq for Function {}
 
 impl ObjectT for Function {
     fn object_type(&self) -> ObjectType {
