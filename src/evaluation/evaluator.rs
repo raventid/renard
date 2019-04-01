@@ -147,8 +147,6 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
                             new_error(format!("unknown operator: INTEGER {} INTEGER", ie.operator))
                         }
                     }
-                // what if not boolean?
-                // TODO: maybe I should cover every option every time?
                 } else if let (
                     object::Object::Boolean(left_obj),
                     object::Object::Boolean(right_obj),
