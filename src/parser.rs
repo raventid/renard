@@ -82,6 +82,8 @@ impl LambdaParsers {
 
         self.register_prefix(token::INT.to_string(), Box::new(Self::parse_int_literal));
 
+        self.register_prefix(token::STRING.to_string(), Box::new(Self::parse_string_literal));
+
         self.register_prefix(
             token::BANG.to_string(),
             Box::new(Self::parse_prefix_expression),
@@ -182,6 +184,13 @@ impl LambdaParsers {
         token::Expression::IntegerLiteral(token::IntegerLiteral {
             token: parser.current_token.clone(),
             value: integer,
+        })
+    }
+
+    fn parse_string_literal(parser: &mut Parser) -> token::Expression {
+        token::Expression::StringLiteral(token::StringLiteral {
+            token: parser.current_token.clone(),
+            value: parser.current_token.literal.clone(),
         })
     }
 
@@ -1021,6 +1030,55 @@ mod tests {
             // Anyway in control code I will use it the other way.
             assert_eq!(integer_literal.value, 42);
             assert_eq!(integer_literal.token_literal(), "42");
+        })
+    }
+
+    #[test]
+    fn test_string_literal_expression() {
+        let input = r###"
+          "kobushka";
+        "###
+        .to_string();
+
+        let lexer = lexer::Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+
+        let mut lambda_parsers = LambdaParsers {
+            prefix_parse_fns: HashMap::new(),
+            infix_parse_fns: HashMap::new(),
+        };
+
+        lambda_parsers.register_parsers();
+
+        let program = parser.parse_program(&lambda_parsers);
+
+        // We would like to accumulate every error in program
+        // and later render them to user.
+        if !parser.errors.is_empty() {
+            println!("Parser encountered {} errors", parser.errors.len());
+            for error in parser.errors {
+                println!("parser error: {}", error);
+            }
+            panic!("A few parsing error encountered, see them above.");
+        }
+
+        assert_eq!(program.statements.len(), 1);
+
+        program.statements.into_iter().for_each(|statement| {
+            let expression_statement = match statement {
+                Statements::ExpressionStatement(statement) => statement,
+                _ => panic!("I didn't expect something besides expression statement"),
+            };
+
+            let string_literal = match expression_statement.expression {
+                Expression::StringLiteral(sl) => sl,
+                _ => panic!("expected to find an string_literal, but found smth else"),
+            };
+            // TODO: Maybe pattern matching on concrete branch is better here
+            // then some general value() method.
+            // Anyway in control code I will use it the other way.
+            assert_eq!(string_literal.value, "kobushka".to_string());
+            assert_eq!(string_literal.token_literal(), "kobushka");
         })
     }
 

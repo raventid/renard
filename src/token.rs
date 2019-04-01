@@ -125,6 +125,7 @@ impl fmt::Display for Statements {
 pub enum Expression {
     Identifier(Identifier),
     IntegerLiteral(IntegerLiteral),
+    StringLiteral(StringLiteral),
     PrefixExpression(Box<PrefixExpression>), // This expression contains recursion
     InfixExpression(Box<InfixExpression>),   // Same as previous
     Boolean(Boolean),
@@ -140,6 +141,7 @@ impl ast::Node for Expression {
             Expression::IntegerLiteral(il) => il.token_literal(),
             Expression::PrefixExpression(pe) => pe.token_literal(),
             Expression::InfixExpression(ie) => ie.token_literal(),
+            Expression::StringLiteral(sl) => sl.token_literal(),
             Expression::Boolean(b) => b.token_literal(),
             Expression::IfExpression(ie) => ie.token_literal(),
             Expression::FunctionLiteral(f) => f.token_literal(),
@@ -153,6 +155,7 @@ impl fmt::Display for Expression {
         match self {
             Expression::Identifier(i) => fmt::Display::fmt(i, f),
             Expression::IntegerLiteral(il) => fmt::Display::fmt(il, f),
+            Expression::StringLiteral(sl) => fmt::Display::fmt(sl, f),
             Expression::PrefixExpression(pe) => fmt::Display::fmt(pe, f),
             Expression::InfixExpression(ie) => fmt::Display::fmt(ie, f),
             Expression::Boolean(b) => fmt::Display::fmt(b, f),
@@ -205,6 +208,26 @@ impl ast::Node for Identifier {
 }
 
 impl fmt::Display for Identifier {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+
+
+// String literal.
+#[derive(Debug, Clone)]
+pub struct StringLiteral {
+    pub token: Token,
+    pub value: String,
+}
+
+impl ast::Node for StringLiteral {
+    fn token_literal(&self) -> String {
+        self.token.literal.to_string()
+    }
+}
+
+impl fmt::Display for StringLiteral {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.value)
     }

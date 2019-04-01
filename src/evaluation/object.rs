@@ -14,6 +14,7 @@ pub trait ObjectT {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Object {
     Integer(Integer),
+    Stringl(Stringl),
     Boolean(Boolean),
     Nil(Nil),
     ReturnValue(Box<ReturnValue>),
@@ -25,6 +26,7 @@ impl ObjectT for Object {
     fn object_type(&self) -> ObjectType {
         match self {
             Object::Integer(i) => i.object_type(),
+            Object::Stringl(s) => s.object_type(),
             Object::Boolean(b) => b.object_type(),
             Object::Nil(n) => n.object_type(),
             Object::ReturnValue(rv) => rv.object_type(),
@@ -36,6 +38,7 @@ impl ObjectT for Object {
     fn inspect(&self) -> String {
         match self {
             Object::Integer(i) => i.inspect(),
+            Object::Stringl(s) => s.inspect(),
             Object::Boolean(b) => b.inspect(),
             Object::Nil(n) => n.inspect(),
             Object::ReturnValue(rv) => rv.inspect(),
@@ -62,6 +65,22 @@ impl ObjectT for Integer {
 
     fn inspect(&self) -> String {
         self.value.to_string()
+    }
+}
+
+// String literal
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Stringl {
+    pub value: String,
+}
+
+impl ObjectT for Stringl {
+    fn object_type(&self) -> ObjectType {
+        "STRING".to_string()
+    }
+
+    fn inspect(&self) -> String {
+        self.value.clone()
     }
 }
 

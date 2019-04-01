@@ -69,13 +69,16 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
         WN::E(expression) => match expression {
             token::Expression::IntegerLiteral(il) => {
                 object::Object::Integer(object::Integer { value: il.value })
-            }
+            },
+            token::Expression::StringLiteral(sl) => {
+                object::Object::Stringl(object::Stringl { value: sl.value })
+            },
             token::Expression::Identifier(i) => {
                 match env.get(i.value.clone()) {
                     Some(value) => value.clone(), // Cloning one more time... Signature, sir?
                     None => new_error(format!("identifier not found: {}", i.value)),
                 }
-            }
+            },
             token::Expression::PrefixExpression(pe) => {
                 let right = eval(WN::E(pe.right), env);
                 if is_error(&right) {
@@ -102,7 +105,7 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
                         right.object_type()
                     )),
                 }
-            }
+            },
             token::Expression::InfixExpression(ie) => {
                 let left = eval(WN::E(ie.left), env);
                 if is_error(&left) {
