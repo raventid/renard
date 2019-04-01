@@ -21,3 +21,4 @@ This project has nothing to do with Clojure programming language. Name clojurium
 - [ ] Standard library, tailored for network applications
 - [ ] Find a better name
 - [ ] Easy modal execution (REPL(interpreter), VM, AOT)
+- [ ] Basic runtime optimizations (TCO, DCE)
