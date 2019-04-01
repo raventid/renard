@@ -23,3 +23,19 @@ This project has nothing to do with Clojure programming language. Name clojurium
 - [ ] Easy modal execution (REPL(interpreter), VM, AOT)
 - [ ] Basic runtime optimizations (TCO, DCE)
 - [ ] Friendly error messages
+
+## Intro
+```
+// Bindings
+let a = 10;
+let b = 20;
+let c = a + b;
+
+// Strings
+let create_greeting = fn(str, str') { str + str' };
+let greeting = create_greeting("Hello, ", "Raventid");
+
+// Higher order functions
+let build_adder = fn(val) { fun(arg) { arg + val } };
+let add2 = build_adder(2);
+```
