@@ -123,6 +123,10 @@ impl Lexer {
                 token_type: token::RBRACE.to_string(),
                 literal: [self.ch].iter().map(|&c| c as char).collect::<String>(),
             },
+            b'"' => token::Token {
+                token_type: token::STRING.to_string(),
+                literal: self.read_string(),
+            },
             0 => token::Token {
                 token_type: token::EOF.to_string(),
                 literal: "".to_string(),
@@ -171,6 +175,20 @@ impl Lexer {
         while self.is_letter(self.ch) {
             self.read_char()
         }
+        self.input.as_bytes()[position as usize..self.position as usize]
+            .iter()
+            .map(|&c| c as char)
+            .collect::<String>()
+    }
+
+    fn read_string(&mut self) -> String {
+        self.read_char(); // ignore opening `"`
+        let position = self.position;
+
+        while self.ch != b'"' || self.ch != 0 {
+            self.read_char();
+        }
+
         self.input.as_bytes()[position as usize..self.position as usize]
             .iter()
             .map(|&c| c as char)
@@ -251,6 +269,7 @@ mod tests {
           };
 
           let result = add(five, ten);
+          "kobushka";
         "###
         .to_string();
 
@@ -290,6 +309,8 @@ mod tests {
             (token::COMMA.to_string(), String::from(",")),
             (token::IDENT.to_string(), String::from("ten")),
             (token::RPAREN.to_string(), String::from(")")),
+            (token::SEMICOLON.to_string(), String::from(";")),
+            (token::STRING.to_string(), String::from("kobushka")),
             (token::SEMICOLON.to_string(), String::from(";")),
             (token::EOF.to_string(), String::from("")),
         ];
