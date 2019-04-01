@@ -69,16 +69,16 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
         WN::E(expression) => match expression {
             token::Expression::IntegerLiteral(il) => {
                 object::Object::Integer(object::Integer { value: il.value })
-            },
+            }
             token::Expression::StringLiteral(sl) => {
                 object::Object::Stringl(object::Stringl { value: sl.value })
-            },
+            }
             token::Expression::Identifier(i) => {
                 match env.get(i.value.clone()) {
                     Some(value) => value.clone(), // Cloning one more time... Signature, sir?
                     None => new_error(format!("identifier not found: {}", i.value)),
                 }
-            },
+            }
             token::Expression::PrefixExpression(pe) => {
                 let right = eval(WN::E(pe.right), env);
                 if is_error(&right) {
@@ -105,7 +105,7 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
                         right.object_type()
                     )),
                 }
-            },
+            }
             token::Expression::InfixExpression(ie) => {
                 let left = eval(WN::E(ie.left), env);
                 if is_error(&left) {
@@ -165,20 +165,40 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
                             new_error(format!("unknown operator: BOOLEAN {} BOOLEAN", ie.operator))
                         }
                     }
+                } else if let (
+                    object::Object::Stringl(left_str),
+                    object::Object::Stringl(right_str),
+                ) = (left.clone(), right.clone())
+                {
+                    match ie.operator.as_ref() {
+                        "+" => object::Object::Stringl(object::Stringl {
+                            value: format!("{}{}", left_str.value, right_str.value),
+                        }),
+                        _ => new_error(format!("unknown operator: STRING {} STRING", ie.operator)),
+                    }
                 } else {
-                    new_error(format!(
-                        "type mismatch: {} {} {}",
-                        left.object_type(),
-                        ie.operator,
-                        right.object_type()
-                    ))
+                    if left.same_tag(&right) {
+                        new_error(format!(
+                            "unknown operator: {} {} {}",
+                            left.object_type(),
+                            ie.operator,
+                            right.object_type()
+                        ))
+                    } else {
+                        new_error(format!(
+                            "type mismatch: {} {} {}",
+                            left.object_type(),
+                            ie.operator,
+                            right.object_type()
+                        ))
+                    }
                 }
-            },
+            }
             token::Expression::Boolean(b) => {
                 // TODO: Check possible perf optimization? Needed?
                 // Reuse TRUE and FALSE I mean
                 object::Object::Boolean(object::Boolean { value: b.value })
-            },
+            }
             token::Expression::IfExpression(ie) => {
                 let condition = eval(WN::E(ie.condition), env);
                 if is_error(&condition) {
@@ -193,7 +213,7 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
                         None => NIL,
                     }
                 }
-            },
+            }
             token::Expression::FunctionLiteral(fl) => {
                 let parameters = fl.parameters;
                 let body = fl.body;
@@ -203,7 +223,7 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
                     body,
                     env: env.clone(),
                 })
-            },
+            }
             token::Expression::CallExpression(ce) => {
                 let fun = eval(WN::E(ce.function), env);
                 if is_error(&fun) {
@@ -217,11 +237,11 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
                 };
 
                 if args.len() == 1 && is_error(&args[0]) {
-                    return args[0].clone()
+                    return args[0].clone();
                 }
 
                 apply_function(fun, args)
-            },
+            }
         },
     }
 }
@@ -324,15 +344,18 @@ fn eval_expressions(
     expressions: Vec<token::Expression>,
     env: &mut environment::Environment,
 ) -> Vec<object::Object> {
-        // https://stackoverflow.com/questions/26368288/how-do-i-stop-iteration-and-return-an-error-when-iteratormap-returns-a-result
-        let evaluated: Result<Vec<_>, _> = expressions.into_iter().map(|expression| {
+    // https://stackoverflow.com/questions/26368288/how-do-i-stop-iteration-and-return-an-error-when-iteratormap-returns-a-result
+    let evaluated: Result<Vec<_>, _> = expressions
+        .into_iter()
+        .map(|expression| {
             let evaluated = eval(WN::E(expression), env);
             if is_error(&evaluated) {
                 Err(evaluated)
             } else {
                 Ok(evaluated)
             }
-        }).collect();
+        })
+        .collect();
 
     match evaluated {
         Ok(vals) => vals,
@@ -346,12 +369,15 @@ fn apply_function(fun: object::Object, args: Vec<object::Object>) -> object::Obj
             let mut extended_env = extend_function_env(fun.clone(), args);
             let evaluated = eval(WN::B(fun.body), &mut extended_env);
             unwrap_return_value(evaluated)
-        },
+        }
         _ => new_error(format!("not a function: {}", fun.object_type())),
     }
 }
 
-fn extend_function_env(fun: object::Function, args: Vec<object::Object>) -> environment::Environment {
+fn extend_function_env(
+    fun: object::Function,
+    args: Vec<object::Object>,
+) -> environment::Environment {
     let mut env = environment::Environment::new_enclosed_environment(fun.env);
     match fun.parameters {
         Some(params) => {
@@ -359,7 +385,7 @@ fn extend_function_env(fun: object::Function, args: Vec<object::Object>) -> envi
                 env.set(param.value, arg);
             }
             env
-        },
+        }
         None => env,
     }
 }
@@ -557,6 +583,11 @@ mod tests {
                 "unknown_bebe".to_string(),
                 "identifier not found: unknown_bebe".to_string(),
             ),
+            // String concatenation
+            (
+                r###" "Hey" - "Bebe" "###.to_string(),
+                "unknown operator: STRING - STRING".to_string(),
+            ),
         ];
 
         for (expression, expected) in pairs {
@@ -615,6 +646,19 @@ mod tests {
 
         for (expression, expected) in pairs {
             assert_integer_object(run_eval(expression), expected)
+        }
+    }
+
+    #[test]
+    fn test_string_concatenation() {
+        let input = r###""Hey," + " " + "Bebe!""###.to_string();
+
+        let evaluated = run_eval(input);
+        match evaluated {
+            evaluation::object::Object::Stringl(string) => {
+                assert_eq!(string.value, "Hey, Bebe!".to_string())
+            }
+            _ => panic!("Expected string literal, got {:?}", evaluated),
         }
     }
 

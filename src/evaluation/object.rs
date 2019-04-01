@@ -22,6 +22,21 @@ pub enum Object {
     Function(Function),
 }
 
+impl Object {
+    pub fn same_tag(&self, other: &Object) -> bool {
+        match (self, other) {
+            (Object::Integer(_), Object::Integer(_)) => true,
+            (Object::Stringl(_), Object::Stringl(_)) => true,
+            (Object::Boolean(_), Object::Boolean(_)) => true,
+            (Object::Nil(_), Object::Nil(_)) => true,
+            (Object::ReturnValue(_), Object::ReturnValue(_)) => true,
+            (Object::Error(_), Object::Error(_)) => true,
+            (Object::Function(_), Object::Function(_)) => true,
+            (_, _) => false,
+        }
+    }
+}
+
 impl ObjectT for Object {
     fn object_type(&self) -> ObjectType {
         match self {
