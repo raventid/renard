@@ -182,11 +182,14 @@ impl Lexer {
     }
 
     fn read_string(&mut self) -> String {
-        self.read_char(); // ignore opening `"`
-        let position = self.position;
+        let position = self.position + 1; // ignore opening `"`
 
-        while self.ch != b'"' || self.ch != 0 {
+        loop {
             self.read_char();
+
+            if self.ch == b'"' || self.ch == 0 {
+                break
+            }
         }
 
         self.input.as_bytes()[position as usize..self.position as usize]
