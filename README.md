@@ -22,3 +22,4 @@ This project has nothing to do with Clojure programming language. Name clojurium
 - [ ] Find a better name
 - [ ] Easy modal execution (REPL(interpreter), VM, AOT)
 - [ ] Basic runtime optimizations (TCO, DCE)
+- [ ] Friendly error messages
