@@ -1,6 +1,8 @@
 use crate::evaluation::environment;
 use crate::token;
 
+use crate::core;
+
 type ObjectType = String;
 
 pub trait ObjectT {
@@ -20,6 +22,7 @@ pub enum Object {
     ReturnValue(Box<ReturnValue>),
     Error(Error),
     Function(Function),
+    CoreFunc(CoreFunc),
 }
 
 impl Object {
@@ -47,6 +50,7 @@ impl ObjectT for Object {
             Object::ReturnValue(rv) => rv.object_type(),
             Object::Error(err) => err.object_type(),
             Object::Function(fun) => fun.object_type(),
+            Object::CoreFunc(fun) => fun.object_type(),
         }
     }
 
@@ -59,6 +63,7 @@ impl ObjectT for Object {
             Object::ReturnValue(rv) => rv.inspect(),
             Object::Error(err) => err.inspect(),
             Object::Function(fun) => fun.inspect(),
+            Object::CoreFunc(fun) => fun.inspect(),
         }
     }
 }
@@ -194,5 +199,44 @@ impl ObjectT for Function {
         };
 
         format!("fn({}) {{{}}}", params, self.body)
+    }
+}
+
+// Core functions aka almost stdlib.
+#[derive(Clone, PartialEq, Eq)]
+pub struct CoreFunc {
+    pub function_name: core::funcs::FunctionName,
+    pub arity: core::funcs::Arity,
+}
+
+impl CoreFunc {
+    pub fn try_new(function_name: String) -> Option<Object> {
+        match core::funcs::CORE_REGISTRY.get(&function_name) {
+            Some(arity) => Some(Object::CoreFunc(CoreFunc {
+                function_name,
+                arity: *arity,
+            })),
+            None => None,
+        }
+    }
+
+    pub fn call(&self, args: Vec<Object>) -> Object {
+        core::funcs::call(self.function_name.clone(), args)
+    }
+}
+
+impl std::fmt::Debug for CoreFunc {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Core function")
+    }
+}
+
+impl ObjectT for CoreFunc {
+    fn object_type(&self) -> ObjectType {
+        "CORE_FUNCTION".to_string()
+    }
+
+    fn inspect(&self) -> String {
+        "Core function".to_string()
     }
 }

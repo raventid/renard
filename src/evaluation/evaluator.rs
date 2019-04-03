@@ -76,7 +76,10 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
             token::Expression::Identifier(i) => {
                 match env.get(i.value.clone()) {
                     Some(value) => value.clone(), // Cloning one more time... Signature, sir?
-                    None => new_error(format!("identifier not found: {}", i.value)),
+                    None => match object::CoreFunc::try_new(i.value.clone()) {
+                        Some(val) => val.clone(),
+                        None => new_error(format!("identifier not found: {}", i.value)),
+                    }
                 }
             }
             token::Expression::PrefixExpression(pe) => {
@@ -266,7 +269,7 @@ fn is_error(potential_error: &object::Object) -> bool {
     }
 }
 
-fn new_error(formated_string: String) -> object::Object {
+pub fn new_error(formated_string: String) -> object::Object {
     object::Object::Error(object::Error {
         message: formated_string,
     })
@@ -367,6 +370,9 @@ fn apply_function(fun: object::Object, args: Vec<object::Object>) -> object::Obj
             let mut extended_env = extend_function_env(fun.clone(), args);
             let evaluated = eval(WN::B(fun.body), &mut extended_env);
             unwrap_return_value(evaluated)
+        },
+        object::Object::CoreFunc(fun) => {
+            fun.call(args)
         }
         _ => new_error(format!("not a function: {}", fun.object_type())),
     }
@@ -655,8 +661,36 @@ mod tests {
         match evaluated {
             evaluation::object::Object::Stringl(string) => {
                 assert_eq!(string.value, "Hey, Bebe!".to_string())
-            }
+            },
             _ => panic!("Expected string literal, got {:?}", evaluated),
+        }
+    }
+
+    #[test]
+    fn test_core_functions() {
+        let pairs = vec![
+            ("length(\"\")".to_string(), Ok(0)),
+            ("length(\"bebe\")".to_string(), Ok(4)),
+            (
+                "length(1)".to_string(),
+                Err("argument to `length` not supported, got INTEGER".to_string()),
+            ),
+            (
+                "length(\"bebe\", \"milobe\")".to_string(),
+                Err("wrong number of arguments: got=2, expected=1".to_string()),
+            ),
+        ];
+
+        for (expression, result) in pairs {
+            match result {
+                Ok(int) => assert_integer_object(run_eval(expression), int),
+                Err(err) => match run_eval(expression) {
+                    evaluation::object::Object::Error(evaluation::object::Error { message }) => {
+                        assert_eq!(message, err)
+                    },
+                    _ => panic!("Expected error, got {:?}", err),
+                },
+            }
         }
     }
 

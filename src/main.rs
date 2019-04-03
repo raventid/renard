@@ -10,6 +10,9 @@ mod evaluation {
     pub mod evaluator;
     pub mod environment;
 }
+mod core {
+    pub mod funcs;
+}
 
 fn main() {
     // how to get current user name in crossplatform style?
