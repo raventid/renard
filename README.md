@@ -12,6 +12,7 @@ This project has nothing to do with Clojure programming language. Name clojurium
 - [x] Parser
 - [ ] Simple Interpreter
 - [ ] REPL
+- [ ] Super basic standard library
 - [ ] Virtual Machine with bytecode
 - [ ] Low pause GC
 - [ ] AOT compilation (via Rust as IR)
