@@ -127,6 +127,14 @@ impl Lexer {
                 token_type: token::STRING.to_string(),
                 literal: self.read_string(),
             },
+            b'[' => token::Token {
+                token_type: token::LBRACKET.to_string(),
+                literal: [self.ch].iter().map(|&c| c as char).collect::<String>(),
+            },
+            b']' => token::Token {
+                token_type: token::RBRACKET.to_string(),
+                literal: [self.ch].iter().map(|&c| c as char).collect::<String>(),
+            },
             0 => token::Token {
                 token_type: token::EOF.to_string(),
                 literal: "".to_string(),
@@ -272,7 +280,10 @@ mod tests {
           };
 
           let result = add(five, ten);
+
           "kobushka";
+
+          [1, 2];
         "###
         .to_string();
 
@@ -314,6 +325,12 @@ mod tests {
             (token::RPAREN.to_string(), String::from(")")),
             (token::SEMICOLON.to_string(), String::from(";")),
             (token::STRING.to_string(), String::from("kobushka")),
+            (token::SEMICOLON.to_string(), String::from(";")),
+            (token::LBRACKET.to_string(), String::from("[")),
+            (token::INT.to_string(), String::from("1")),
+            (token::COMMA.to_string(), String::from(",")),
+            (token::INT.to_string(), String::from("2")),
+            (token::RBRACKET.to_string(), String::from("]")),
             (token::SEMICOLON.to_string(), String::from(";")),
             (token::EOF.to_string(), String::from("")),
         ];

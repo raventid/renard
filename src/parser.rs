@@ -82,7 +82,15 @@ impl LambdaParsers {
 
         self.register_prefix(token::INT.to_string(), Box::new(Self::parse_int_literal));
 
-        self.register_prefix(token::STRING.to_string(), Box::new(Self::parse_string_literal));
+        self.register_prefix(
+            token::STRING.to_string(),
+            Box::new(Self::parse_string_literal),
+        );
+
+        self.register_prefix(
+            token::LBRACKET.to_string(),
+            Box::new(Self::parse_array_literal),
+        );
 
         self.register_prefix(
             token::BANG.to_string(),
@@ -192,6 +200,66 @@ impl LambdaParsers {
             token: parser.current_token.clone(),
             value: parser.current_token.literal.clone(),
         })
+    }
+
+    fn parse_array_literal(parser: &mut Parser) -> token::Expression {
+        // This function is loosely based on internal `parse_call_expression`
+        // helper wich parses params.
+        //
+        // TODO: This could be unified with helper from `parse_call_expressin`
+        // or they could be both unified
+        fn parse_expression_list(parser: &mut Parser) -> Vec<token::Expression> {
+            // TODO: Reinitialization of parser here and in the `parse_prefix_expression`
+            // Should move this initialization somewhere and use link everywhere else.
+            let mut lambda_parsers = LambdaParsers {
+                prefix_parse_fns: HashMap::new(),
+                infix_parse_fns: HashMap::new(),
+            };
+            lambda_parsers.register_parsers();
+
+            // panic!("{:?}", parser);
+
+            if parser.peek_token.token_type == token::RBRACKET {
+                parser.next_token();
+                return Vec::new();
+            }
+
+            parser.next_token(); // skip `LBRACKET`
+
+            let first_param = match parser.parse_expression(&lambda_parsers, token::LOWEST) {
+                Some(expr) => expr,
+                None => panic!("Failed to parse param"),
+            };
+
+            let mut params = vec![first_param];
+
+            while parser.peek_token.token_type == token::COMMA {
+                parser.next_token(); // set cursor to `,`
+                parser.next_token(); // skip `,` and move cursor to next token
+
+                let param = match parser.parse_expression(&lambda_parsers, token::LOWEST) {
+                    Some(expr) => expr,
+                    None => panic!("Failed to parse param"),
+                };
+
+                params.push(param);
+            }
+
+            if parser.peek_token.token_type != token::RBRACKET {
+                panic!(
+                    "Expected closing `]` after params, got {}",
+                    parser.peek_token.token_type
+                );
+            }
+            parser.next_token(); // set cursor to RPAREN and leave parser
+
+            params
+        }
+
+        let token = parser.current_token.clone();
+        let elements = parse_expression_list(parser);
+
+        token::Expression::ArrayLiteral(token::ArrayLiteral { token, elements })
     }
 
     fn parse_boolean(parser: &mut Parser) -> token::Expression {
@@ -530,7 +598,10 @@ impl LambdaParsers {
             }
 
             if parser.peek_token.token_type != token::RPAREN {
-                panic!("Expected closing `)` after params, got {}", parser.peek_token.token_type);
+                panic!(
+                    "Expected closing `)` after params, got {}",
+                    parser.peek_token.token_type
+                );
             }
             parser.next_token(); // set cursor to RPAREN and leave parser
 
@@ -672,11 +743,7 @@ impl Parser {
         // Weird, it does not work here that way.
         // self.next_token();
 
-        Some(token::LetStatement {
-            token,
-            name,
-            value,
-        })
+        Some(token::LetStatement { token, name, value })
     }
 
     // TODO: Why Option here?
@@ -695,7 +762,10 @@ impl Parser {
 
         let return_value = match self.parse_expression(&lambda_parsers, token::LOWEST) {
             Some(expr) => expr,
-            None => panic!("UNREACHABLE: return statement parser with {}", self.current_token.token_type),
+            None => panic!(
+                "UNREACHABLE: return statement parser with {}",
+                self.current_token.token_type
+            ),
         };
 
         if self.peek_token.token_type == token::SEMICOLON {
@@ -1079,6 +1149,61 @@ mod tests {
             // Anyway in control code I will use it the other way.
             assert_eq!(string_literal.value, "kobushka".to_string());
             assert_eq!(string_literal.token_literal(), "kobushka");
+        })
+    }
+
+    #[test]
+    fn test_array_literal() {
+        let input = r###"
+          [1, 2+3, 4+5];
+        "###
+        .to_string();
+
+        let lexer = lexer::Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+
+        let mut lambda_parsers = LambdaParsers {
+            prefix_parse_fns: HashMap::new(),
+            infix_parse_fns: HashMap::new(),
+        };
+
+        lambda_parsers.register_parsers();
+
+        let program = parser.parse_program(&lambda_parsers);
+
+        // We would like to accumulate every error in program
+        // and later render them to user.
+        if !parser.errors.is_empty() {
+            println!("Parser encountered {} errors", parser.errors.len());
+            for error in parser.errors {
+                println!("parser error: {}", error);
+            }
+            panic!("A few parsing error encountered, see them above.");
+        }
+
+        assert_eq!(program.statements.len(), 1);
+
+        program.statements.into_iter().for_each(|statement| {
+            let expression_statement = match statement {
+                Statements::ExpressionStatement(statement) => statement,
+                _ => panic!("I didn't expect something besides expression statement"),
+            };
+
+            let array_literal = match expression_statement.expression {
+                Expression::ArrayLiteral(al) => al,
+                _ => panic!(
+                    "expected to find an array_literal, but found {:?}",
+                    expression_statement.expression
+                ),
+            };
+
+            assert_integer_literal(&array_literal.elements[0], 1);
+            test_infix_expression(
+                &array_literal.elements[1],
+                ExpectedAssertLiteral::I(2),
+                "+".to_string(),
+                ExpectedAssertLiteral::I(3),
+            );
         })
     }
 

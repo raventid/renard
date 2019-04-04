@@ -54,7 +54,7 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
                     return val;
                 };
                 env.set(ls.name.value, val).clone() // Hmmmmmmmmmmmm, change signature? To avoid cloning? Should work.
-            }
+            },
             token::Statements::ReturnStatement(rs) => {
                 let val = eval(WN::E(rs.return_value), env);
                 // To see, why this early return is important look at the
@@ -63,16 +63,19 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
                     return val;
                 }
                 object::Object::ReturnValue(Box::new(object::ReturnValue { value: val }))
-            }
+            },
         },
         WN::B(block) => eval_block_statement(block.statements, env),
         WN::E(expression) => match expression {
             token::Expression::IntegerLiteral(il) => {
                 object::Object::Integer(object::Integer { value: il.value })
-            }
+            },
             token::Expression::StringLiteral(sl) => {
                 object::Object::Stringl(object::Stringl { value: sl.value })
-            }
+            },
+            token::Expression::ArrayLiteral(al) => {
+                NIL
+            },
             token::Expression::Identifier(i) => {
                 match env.get(i.value.clone()) {
                     Some(value) => value.clone(), // Cloning one more time... Signature, sir?
@@ -81,7 +84,7 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
                         None => new_error(format!("identifier not found: {}", i.value)),
                     }
                 }
-            }
+            },
             token::Expression::PrefixExpression(pe) => {
                 let right = eval(WN::E(pe.right), env);
                 if is_error(&right) {
@@ -108,7 +111,7 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
                         right.object_type()
                     )),
                 }
-            }
+            },
             token::Expression::InfixExpression(ie) => {
                 let left = eval(WN::E(ie.left), env);
                 if is_error(&left) {
@@ -194,12 +197,12 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
                         ))
                     }
                 }
-            }
+            },
             token::Expression::Boolean(b) => {
                 // TODO: Check possible perf optimization? Needed?
                 // Reuse TRUE and FALSE I mean
                 object::Object::Boolean(object::Boolean { value: b.value })
-            }
+            },
             token::Expression::IfExpression(ie) => {
                 let condition = eval(WN::E(ie.condition), env);
                 if is_error(&condition) {
@@ -214,7 +217,7 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
                         None => NIL,
                     }
                 }
-            }
+            },
             token::Expression::FunctionLiteral(fl) => {
                 let parameters = fl.parameters;
                 let body = fl.body;
@@ -224,7 +227,7 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
                     body,
                     env: env.clone(),
                 })
-            }
+            },
             token::Expression::CallExpression(ce) => {
                 let fun = eval(WN::E(ce.function), env);
                 if is_error(&fun) {
@@ -242,7 +245,7 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
                 }
 
                 apply_function(fun, args)
-            }
+            },
         },
     }
 }

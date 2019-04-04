@@ -60,6 +60,8 @@ pub const LPAREN: &str = "(";
 pub const RPAREN: &str = ")";
 pub const LBRACE: &str = "{";
 pub const RBRACE: &str = "}";
+pub const LBRACKET: &str = "[";
+pub const RBRACKET: &str = "]";
 
 // Keywords
 pub const FUNCTION: &str = "FUNCTION";
@@ -126,6 +128,7 @@ pub enum Expression {
     Identifier(Identifier),
     IntegerLiteral(IntegerLiteral),
     StringLiteral(StringLiteral),
+    ArrayLiteral(ArrayLiteral),
     PrefixExpression(Box<PrefixExpression>), // This expression contains recursion
     InfixExpression(Box<InfixExpression>),   // Same as previous
     Boolean(Boolean),
@@ -142,6 +145,7 @@ impl ast::Node for Expression {
             Expression::PrefixExpression(pe) => pe.token_literal(),
             Expression::InfixExpression(ie) => ie.token_literal(),
             Expression::StringLiteral(sl) => sl.token_literal(),
+            Expression::ArrayLiteral(al) => al.token_literal(),
             Expression::Boolean(b) => b.token_literal(),
             Expression::IfExpression(ie) => ie.token_literal(),
             Expression::FunctionLiteral(f) => f.token_literal(),
@@ -156,6 +160,7 @@ impl fmt::Display for Expression {
             Expression::Identifier(i) => fmt::Display::fmt(i, f),
             Expression::IntegerLiteral(il) => fmt::Display::fmt(il, f),
             Expression::StringLiteral(sl) => fmt::Display::fmt(sl, f),
+            Expression::ArrayLiteral(al) => fmt::Display::fmt(al, f),
             Expression::PrefixExpression(pe) => fmt::Display::fmt(pe, f),
             Expression::InfixExpression(ie) => fmt::Display::fmt(ie, f),
             Expression::Boolean(b) => fmt::Display::fmt(b, f),
@@ -507,5 +512,30 @@ impl fmt::Display for CallExpression {
         };
 
         write!(f, "{}({})", self.function, args)
+    }
+}
+
+// Array literal.
+//
+// Example: [1, 2]
+//
+// Structure: [<expression>, <expression>, ...]
+#[derive(Debug, Clone)]
+pub struct ArrayLiteral {
+    pub token: Token,
+    pub elements: Vec<Expression>,
+}
+
+impl ast::Node for ArrayLiteral {
+    fn token_literal(&self) -> String {
+        self.token.literal.to_string()
+    }
+}
+
+impl fmt::Display for ArrayLiteral {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let elems = self.elements.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
+
+        write!(f, "[{}]", elems)
     }
 }
