@@ -52,7 +52,7 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
                     return val;
                 };
                 env.set(ls.name.value, val).clone() // Hmmmmmmmmmmmm, change signature? To avoid cloning? Should work.
-            },
+            }
             token::Statements::ReturnStatement(rs) => {
                 let val = eval(WN::E(rs.return_value), env);
                 // To see, why this early return is important look at the
@@ -61,31 +61,36 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
                     return val;
                 }
                 object::Object::ReturnValue(Box::new(object::ReturnValue { value: val }))
-            },
+            }
         },
         WN::B(block) => eval_block_statement(block.statements, env),
         WN::E(expression) => match expression {
             token::Expression::IntegerLiteral(il) => {
                 object::Object::Integer(object::Integer { value: il.value })
-            },
+            }
             token::Expression::StringLiteral(sl) => {
                 object::Object::Stringl(object::Stringl { value: sl.value })
-            },
+            }
             token::Expression::ArrayLiteral(al) => {
-                NIL
-            },
-            token::Expression::IndexExpression(ie) => {
-                NIL
-            },
+                // first, eval arguments
+                let elements = eval_expressions(al.elements, env);
+
+                if elements.len() == 1 && is_error(&elements[0]) {
+                    return elements[0].clone();
+                }
+
+                object::Object::Array(object::Array { elements })
+            }
+            token::Expression::IndexExpression(ie) => NIL,
             token::Expression::Identifier(i) => {
                 match env.get(i.value.clone()) {
                     Some(value) => value.clone(), // Cloning one more time... Signature, sir?
                     None => match object::CoreFunc::try_new(i.value.clone()) {
                         Some(val) => val.clone(),
                         None => new_error(format!("identifier not found: {}", i.value)),
-                    }
+                    },
                 }
-            },
+            }
             token::Expression::PrefixExpression(pe) => {
                 let right = eval(WN::E(pe.right), env);
                 if is_error(&right) {
@@ -112,7 +117,7 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
                         right.object_type()
                     )),
                 }
-            },
+            }
             token::Expression::InfixExpression(ie) => {
                 let left = eval(WN::E(ie.left), env);
                 if is_error(&left) {
@@ -198,12 +203,12 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
                         ))
                     }
                 }
-            },
+            }
             token::Expression::Boolean(b) => {
                 // TODO: Check possible perf optimization? Needed?
                 // Reuse TRUE and FALSE I mean
                 object::Object::Boolean(object::Boolean { value: b.value })
-            },
+            }
             token::Expression::IfExpression(ie) => {
                 let condition = eval(WN::E(ie.condition), env);
                 if is_error(&condition) {
@@ -218,7 +223,7 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
                         None => NIL,
                     }
                 }
-            },
+            }
             token::Expression::FunctionLiteral(fl) => {
                 let parameters = fl.parameters;
                 let body = fl.body;
@@ -228,7 +233,7 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
                     body,
                     env: env.clone(),
                 })
-            },
+            }
             token::Expression::CallExpression(ce) => {
                 let fun = eval(WN::E(ce.function), env);
                 if is_error(&fun) {
@@ -246,7 +251,7 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
                 }
 
                 apply_function(fun, args)
-            },
+            }
         },
     }
 }
@@ -299,7 +304,7 @@ pub fn eval_program(program: ast::Program, env: &mut environment::Environment) -
         match result.clone() {
             object::Object::ReturnValue(ret_val) => break ret_val.value,
             err @ object::Object::Error(_) => break err,
-            otherwise => (),
+            _ => (),
         };
 
         if size == 0 {
@@ -374,10 +379,8 @@ fn apply_function(fun: object::Object, args: Vec<object::Object>) -> object::Obj
             let mut extended_env = extend_function_env(fun.clone(), args);
             let evaluated = eval(WN::B(fun.body), &mut extended_env);
             unwrap_return_value(evaluated)
-        },
-        object::Object::CoreFunc(fun) => {
-            fun.call(args)
         }
+        object::Object::CoreFunc(fun) => fun.call(args),
         _ => new_error(format!("not a function: {}", fun.object_type())),
     }
 }
@@ -503,6 +506,20 @@ mod tests {
                 Some(val) => assert_integer_object(evaluated, val),
                 None => assert_eq!(evaluated, evaluation::evaluator::NIL),
             }
+        }
+    }
+
+    #[test]
+    fn test_array_literal() {
+        let evaluated = run_eval("[1, 1 + 1, 1 * 2]".to_string());
+        match evaluated {
+            evaluation::object::Object::Array(arr) => {
+                assert_eq!(arr.elements.len(), 3);
+                assert_integer_object(arr.elements[0].clone(), 1);
+                assert_integer_object(arr.elements[1].clone(), 2);
+                assert_integer_object(arr.elements[2].clone(), 2);
+            }
+            _ => panic!("expected array literal, got {:?}", evaluated),
         }
     }
 
@@ -665,7 +682,7 @@ mod tests {
         match evaluated {
             evaluation::object::Object::Stringl(string) => {
                 assert_eq!(string.value, "Hey, Bebe!".to_string())
-            },
+            }
             _ => panic!("Expected string literal, got {:?}", evaluated),
         }
     }
@@ -691,7 +708,7 @@ mod tests {
                 Err(err) => match run_eval(expression) {
                     evaluation::object::Object::Error(evaluation::object::Error { message }) => {
                         assert_eq!(message, err)
-                    },
+                    }
                     _ => panic!("Expected error, got {:?}", err),
                 },
             }

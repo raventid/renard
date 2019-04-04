@@ -222,7 +222,6 @@ impl fmt::Display for Identifier {
     }
 }
 
-
 // String literal.
 #[derive(Debug, Clone)]
 pub struct StringLiteral {
@@ -538,7 +537,12 @@ impl ast::Node for ArrayLiteral {
 
 impl fmt::Display for ArrayLiteral {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let elems = self.elements.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
+        let elems = self
+            .elements
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join(", ");
 
         write!(f, "[{}]", elems)
     }

@@ -17,6 +17,7 @@ pub trait ObjectT {
 pub enum Object {
     Integer(Integer),
     Stringl(Stringl),
+    Array(Array),
     Boolean(Boolean),
     Nil(Nil),
     ReturnValue(Box<ReturnValue>),
@@ -30,6 +31,7 @@ impl Object {
         match (self, other) {
             (Object::Integer(_), Object::Integer(_)) => true,
             (Object::Stringl(_), Object::Stringl(_)) => true,
+            (Object::Array(_), Object::Array(_)) => true,
             (Object::Boolean(_), Object::Boolean(_)) => true,
             (Object::Nil(_), Object::Nil(_)) => true,
             (Object::ReturnValue(_), Object::ReturnValue(_)) => true,
@@ -45,6 +47,7 @@ impl ObjectT for Object {
         match self {
             Object::Integer(i) => i.object_type(),
             Object::Stringl(s) => s.object_type(),
+            Object::Array(a) => a.object_type(),
             Object::Boolean(b) => b.object_type(),
             Object::Nil(n) => n.object_type(),
             Object::ReturnValue(rv) => rv.object_type(),
@@ -58,6 +61,7 @@ impl ObjectT for Object {
         match self {
             Object::Integer(i) => i.inspect(),
             Object::Stringl(s) => s.inspect(),
+            Object::Array(a) => a.inspect(),
             Object::Boolean(b) => b.inspect(),
             Object::Nil(n) => n.inspect(),
             Object::ReturnValue(rv) => rv.inspect(),
@@ -177,7 +181,7 @@ pub struct Function {
 // Functions are never equal.
 // It's like NaN.
 impl PartialEq for Function {
-    fn eq(&self, other: &Function) -> bool {
+    fn eq(&self, _other: &Function) -> bool {
         false
     }
 }
@@ -238,5 +242,28 @@ impl ObjectT for CoreFunc {
 
     fn inspect(&self) -> String {
         "Core function".to_string()
+    }
+}
+
+// Array object
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Array {
+    pub elements: Vec<Object>,
+}
+
+impl ObjectT for Array {
+    fn object_type(&self) -> ObjectType {
+        "ARRAY".to_string()
+    }
+
+    fn inspect(&self) -> String {
+        let elems = self
+            .elements
+            .iter()
+            .map(ObjectT::inspect)
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        format!("[{}]", elems)
     }
 }
