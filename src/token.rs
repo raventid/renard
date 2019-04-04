@@ -80,6 +80,7 @@ pub const SUM: u8 = 4; // +
 pub const PRODUCT: u8 = 5; // *
 pub const PREFIX: u8 = 6; // -B or !B
 pub const CALL: u8 = 7; // do_something()
+pub const INDEX: u8 = 8; // array index `[]`
 
 // <<--**********************-->>
 // Statements used by AST
@@ -135,6 +136,7 @@ pub enum Expression {
     IfExpression(Box<IfExpression>), // recur
     FunctionLiteral(FunctionLiteral),
     CallExpression(Box<CallExpression>), // recur
+    IndexExpression(Box<IndexExpression>),
 }
 
 impl ast::Node for Expression {
@@ -150,6 +152,7 @@ impl ast::Node for Expression {
             Expression::IfExpression(ie) => ie.token_literal(),
             Expression::FunctionLiteral(f) => f.token_literal(),
             Expression::CallExpression(ce) => ce.token_literal(),
+            Expression::IndexExpression(ie) => ie.token_literal(),
         }
     }
 }
@@ -167,6 +170,7 @@ impl fmt::Display for Expression {
             Expression::IfExpression(ie) => fmt::Display::fmt(ie, f),
             Expression::FunctionLiteral(func) => fmt::Display::fmt(func, f),
             Expression::CallExpression(ce) => fmt::Display::fmt(ce, f),
+            Expression::IndexExpression(ie) => fmt::Display::fmt(ie, f),
         }
     }
 }
@@ -537,5 +541,29 @@ impl fmt::Display for ArrayLiteral {
         let elems = self.elements.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
 
         write!(f, "[{}]", elems)
+    }
+}
+
+// Index expression.
+//
+// Example: [1,2,3,4][1];
+//
+// Structure: <expression>[<expression>]
+#[derive(Debug, Clone)]
+pub struct IndexExpression {
+    pub token: Token,
+    pub left: Expression,
+    pub index: Expression,
+}
+
+impl ast::Node for IndexExpression {
+    fn token_literal(&self) -> String {
+        self.token.literal.to_string()
+    }
+}
+
+impl fmt::Display for IndexExpression {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({}[{}])", self.left, self.index)
     }
 }

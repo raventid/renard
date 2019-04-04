@@ -25,6 +25,7 @@ lazy_static! {
         (token::SLASH.to_string(), token::PRODUCT),
         (token::ASTERISK.to_string(), token::PRODUCT),
         (token::LPAREN.to_string(), token::CALL), // `(` in infix position should have highest priority
+        (token::LBRACKET.to_string(), token::INDEX), // index expression have a highest precedence
     ]
     .iter()
     .cloned()
@@ -164,6 +165,11 @@ impl LambdaParsers {
         self.register_infix(
             token::LPAREN.to_string(),
             Box::new(Self::parse_call_expression),
+        );
+
+        self.register_infix(
+            token::LBRACKET.to_string(),
+            Box::new(Self::parse_index_expression),
         )
     }
 
@@ -217,8 +223,6 @@ impl LambdaParsers {
             };
             lambda_parsers.register_parsers();
 
-            // panic!("{:?}", parser);
-
             if parser.peek_token.token_type == token::RBRACKET {
                 parser.next_token();
                 return Vec::new();
@@ -260,6 +264,35 @@ impl LambdaParsers {
         let elements = parse_expression_list(parser);
 
         token::Expression::ArrayLiteral(token::ArrayLiteral { token, elements })
+    }
+
+    fn parse_index_expression(parser: &mut Parser, left: token::Expression) -> token::Expression {
+        // TODO: Reinitialization of parser here and in the `parse_prefix_expression`
+        // Should move this initialization somewhere and use link everywhere else.
+        let mut lambda_parsers = LambdaParsers {
+            prefix_parse_fns: HashMap::new(),
+            infix_parse_fns: HashMap::new(),
+        };
+        lambda_parsers.register_parsers();
+
+        let token = parser.current_token.clone();
+
+        parser.next_token();
+
+        let index = match parser.parse_expression(&lambda_parsers, token::LOWEST) {
+            Some(i) => i,
+            None => panic!("failed to parse index expression, failed on index"),
+        };
+
+        if parser.peek_token.token_type != token::RBRACKET {
+            panic!(
+                "Expected closing `]` after params, got {}",
+                parser.peek_token.token_type
+            );
+        }
+        parser.next_token(); // set the cursor to RPAREN and leave parser
+
+        token::Expression::IndexExpression(Box::new(token::IndexExpression { token, left, index}))
     }
 
     fn parse_boolean(parser: &mut Parser) -> token::Expression {
@@ -1382,11 +1415,13 @@ mod tests {
         let inputs = [
             "(1 + 2) * 3 + 4;".to_string(),
             "!true == false;".to_string(),
+            "a * [1, 2, 3, 4][b * c] * d".to_string(),
         ];
 
         let expected = [
             "(((1 + 2) * 3) + 4)\n".to_string(),
             "((! true) == false)\n".to_string(),
+            "((a * ([1, 2, 3, 4][(b * c)])) * d)\n".to_string(),
         ];
 
         // Iterate over every prefix expression and test it individualy
@@ -1555,6 +1590,59 @@ mod tests {
             };
 
             assert_identifier(&alternative.expression, "pirozhenka".to_string());
+        });
+    }
+
+    #[test]
+    fn test_index_expression() {
+        let inputs = ["arr[1 + 1]".to_string()];
+
+        // Iterate over every prefix expression and test it individualy
+        inputs.into_iter().for_each(|input| {
+            let lexer = lexer::Lexer::new(input.to_string());
+            let mut parser = Parser::new(lexer);
+
+            let mut lambda_parsers = LambdaParsers {
+                prefix_parse_fns: HashMap::new(),
+                infix_parse_fns: HashMap::new(),
+            };
+
+            lambda_parsers.register_parsers();
+
+            let program = parser.parse_program(&lambda_parsers);
+
+            // We would like to accumulate every error in program
+            // and later render them to user.
+            if !parser.errors.is_empty() {
+                println!("Parser encountered {} errors", parser.errors.len());
+
+                for error in parser.errors {
+                    println!("parser error: {}", error);
+                }
+
+                panic!("A few parsing error encountered, see them above.");
+            }
+
+            assert_eq!(program.statements.len(), 1);
+
+            let statement = match &program.statements[0] {
+                Statements::ExpressionStatement(statement) => statement,
+                _ => panic!("I didn't expected anything besides `expression` statement"),
+            };
+
+            let index_expression = match &statement.expression {
+                Expression::IndexExpression(a) => a,
+                _ => panic!("I've expected index expression, got {:?}", statement),
+            };
+
+            assert_identifier(&index_expression.left, "arr".to_string());
+
+            test_infix_expression(
+                &index_expression.index,
+                ExpectedAssertLiteral::I(1),
+                "+".to_string(),
+                ExpectedAssertLiteral::I(1),
+            );
         });
     }
 

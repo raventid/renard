@@ -2,8 +2,6 @@ use crate::ast;
 use crate::evaluation::environment;
 use crate::evaluation::object;
 use crate::evaluation::object::ObjectT;
-use crate::lexer;
-use crate::parser;
 use crate::token;
 
 // TODO: Consider this to be a hack.
@@ -74,6 +72,9 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
                 object::Object::Stringl(object::Stringl { value: sl.value })
             },
             token::Expression::ArrayLiteral(al) => {
+                NIL
+            },
+            token::Expression::IndexExpression(ie) => {
                 NIL
             },
             token::Expression::Identifier(i) => {
