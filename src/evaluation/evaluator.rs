@@ -80,8 +80,27 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
                 }
 
                 object::Object::Array(object::Array { elements })
-            }
-            token::Expression::IndexExpression(ie) => NIL,
+            },
+            token::Expression::IndexExpression(ie) => {
+                let left = eval(WN::E(ie.left), env);
+                if is_error(&left) {
+                    return left;
+                }
+                let index = eval(WN::E(ie.index), env);
+                if is_error(&index) {
+                    return index;
+                }
+                if let (object::Object::Array(array), object::Object::Integer(i)) = (left.clone(), index) {
+                    let elements = array.elements;
+                    let i = i.value as usize;
+                    match elements.get(i) {
+                        Some(element) => element.clone(),
+                        None => NIL,
+                    }
+                } else {
+                    new_error(format!("index operator not supported: {}", left.object_type()))
+                }
+            },
             token::Expression::Identifier(i) => {
                 match env.get(i.value.clone()) {
                     Some(value) => value.clone(), // Cloning one more time... Signature, sir?
@@ -520,6 +539,24 @@ mod tests {
                 assert_integer_object(arr.elements[2].clone(), 2);
             }
             _ => panic!("expected array literal, got {:?}", evaluated),
+        }
+    }
+
+    #[test]
+    fn test_array_index_expression() {
+        let pairs = vec![
+            ("[1,2,3][0]".to_string(), Some(1)),
+            ("[1,2,3][1]".to_string(), Some(2)),
+            ("let i=0; [1,2,3][i];".to_string(), Some(1)),
+            ("[1,2,3][3]".to_string(), None),
+        ];
+
+        for (expression, expected) in pairs {
+            let evaluated = run_eval(expression);
+            match expected {
+                Some(val) => assert_integer_object(evaluated, val),
+                None => assert_eq!(evaluated, evaluation::evaluator::NIL),
+            }
         }
     }
 
