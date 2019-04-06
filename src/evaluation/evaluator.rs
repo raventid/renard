@@ -739,6 +739,7 @@ mod tests {
             ),
             // additional test case for arrays
             ("length([1,2,3,4])".to_string(), Ok(4)),
+            ("first([1,2,3,4])".to_string(), Ok(1)),
         ];
 
         for (expression, result) in pairs {
