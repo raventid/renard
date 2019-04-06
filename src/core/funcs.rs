@@ -7,11 +7,16 @@ use std::collections::HashMap;
 pub type FunctionName = String;
 pub type Arity = u8;
 
+// To register new function in the system we have to add it to
+// two different places.
+// First add it here, by registering its arity.
 lazy_static! {
     pub static ref CORE_REGISTRY: HashMap<FunctionName, Arity> =
-        [("length".to_string(), 1)].iter().cloned().collect();
+        [("length".to_string(), 1),].iter().cloned().collect();
 }
 
+// Next we have to update this call function.
+// In the future object system will be redesigned (don't know how exactly, though)
 pub fn call(function_name: FunctionName, args: Vec<object::Object>) -> object::Object {
     match function_name.as_ref() {
         "length" if Some(&(args.len() as u8)) == CORE_REGISTRY.get(&function_name) => {
@@ -31,6 +36,9 @@ pub fn length(str: object::Object) -> object::Object {
     match str {
         object::Object::Stringl(str) => object::Object::Integer(object::Integer {
             value: str.value.len() as i32,
+        }),
+        object::Object::Array(arr) => object::Object::Integer(object::Integer {
+            value: arr.elements.len() as i32,
         }),
         _ => new_error(format!(
             "argument to `length` not supported, got {}",

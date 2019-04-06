@@ -737,6 +737,8 @@ mod tests {
                 "length(\"bebe\", \"milobe\")".to_string(),
                 Err("wrong number of arguments: got=2, expected=1".to_string()),
             ),
+            // additional test case for arrays
+            ("length([1,2,3,4])".to_string(), Ok(4)),
         ];
 
         for (expression, result) in pairs {
