@@ -80,7 +80,7 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
                 }
 
                 object::Object::Array(object::Array { elements })
-            },
+            }
             token::Expression::IndexExpression(ie) => {
                 let left = eval(WN::E(ie.left), env);
                 if is_error(&left) {
@@ -90,7 +90,9 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
                 if is_error(&index) {
                     return index;
                 }
-                if let (object::Object::Array(array), object::Object::Integer(i)) = (left.clone(), index) {
+                if let (object::Object::Array(array), object::Object::Integer(i)) =
+                    (left.clone(), index)
+                {
                     let elements = array.elements;
                     let i = i.value as usize;
                     match elements.get(i) {
@@ -98,9 +100,12 @@ pub fn eval(node: WN, env: &mut environment::Environment) -> object::Object {
                         None => NIL,
                     }
                 } else {
-                    new_error(format!("index operator not supported: {}", left.object_type()))
+                    new_error(format!(
+                        "index operator not supported: {}",
+                        left.object_type()
+                    ))
                 }
-            },
+            }
             token::Expression::Identifier(i) => {
                 match env.get(i.value.clone()) {
                     Some(value) => value.clone(), // Cloning one more time... Signature, sir?
