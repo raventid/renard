@@ -730,7 +730,7 @@ mod tests {
     }
 
     #[test]
-    fn test_core_functions() {
+    fn test_core_functions1() {
         let pairs = vec![
             ("length(\"\")".to_string(), Ok(0)),
             ("length(\"bebe\")".to_string(), Ok(4)),
@@ -758,6 +758,25 @@ mod tests {
                     _ => panic!("Expected error, got {:?}", err),
                 },
             }
+        }
+    }
+
+    #[test]
+    fn test_core_functions2() {
+        let pairs = vec![(
+            "rest([1,2,3,4])".to_string(),
+            evaluation::object::Object::Array(evaluation::object::Array {
+                elements: vec![
+                    evaluation::object::Object::Integer(evaluation::object::Integer { value: 2}),
+                    evaluation::object::Object::Integer(evaluation::object::Integer { value: 3}),
+                    evaluation::object::Object::Integer(evaluation::object::Integer { value: 4}),
+                ],
+            }),
+        )];
+
+        for (expression, result) in pairs {
+            let evaled = run_eval(expression);
+            assert_eq!(evaled, result)
         }
     }
 

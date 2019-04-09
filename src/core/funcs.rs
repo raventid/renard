@@ -14,7 +14,8 @@ lazy_static! {
     pub static ref CORE_REGISTRY: HashMap<FunctionName, Arity> = [
         ("length".to_string(), 1),
         ("first".to_string(), 1),
-        ("last".to_string(), 1)
+        ("last".to_string(), 1),
+        ("rest".to_string(), 1),
     ]
     .iter()
     .cloned()
@@ -33,6 +34,9 @@ pub fn call(function_name: FunctionName, args: Vec<object::Object>) -> object::O
         }
         "last" if Some(&(args.len() as u8)) == CORE_REGISTRY.get(&function_name) => {
             last_(args[0].clone())
+        }
+        "rest" if Some(&(args.len() as u8)) == CORE_REGISTRY.get(&function_name) => {
+            rest_(args[0].clone())
         }
         _ => new_error(format!(
             "wrong number of arguments: got={}, expected={}",
@@ -83,6 +87,19 @@ pub fn last_(arr: object::Object) -> object::Object {
         },
         _ => new_error(format!(
             "argument to `last` must be array, got {}",
+            arr.object_type()
+        )),
+    }
+}
+
+pub fn rest_(arr: object::Object) -> object::Object {
+    match arr {
+        object::Object::Array(arr) => {
+            let elements = arr.elements.clone().into_iter().skip(1).collect();
+            object::Object::Array(object::Array { elements })
+        }
+        _ => new_error(format!(
+            "argument to `rest` must be array, got {}",
             arr.object_type()
         )),
     }
