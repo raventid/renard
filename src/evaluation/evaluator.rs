@@ -763,16 +763,46 @@ mod tests {
 
     #[test]
     fn test_core_functions2() {
-        let pairs = vec![(
-            "rest([1,2,3,4])".to_string(),
-            evaluation::object::Object::Array(evaluation::object::Array {
-                elements: vec![
-                    evaluation::object::Object::Integer(evaluation::object::Integer { value: 2}),
-                    evaluation::object::Object::Integer(evaluation::object::Integer { value: 3}),
-                    evaluation::object::Object::Integer(evaluation::object::Integer { value: 4}),
-                ],
-            }),
-        )];
+        let pairs = vec![
+            (
+                "rest([1,2,3,4])".to_string(),
+                evaluation::object::Object::Array(evaluation::object::Array {
+                    elements: vec![
+                        evaluation::object::Object::Integer(evaluation::object::Integer {
+                            value: 2,
+                        }),
+                        evaluation::object::Object::Integer(evaluation::object::Integer {
+                            value: 3,
+                        }),
+                        evaluation::object::Object::Integer(evaluation::object::Integer {
+                            value: 4,
+                        }),
+                    ],
+                }),
+            ),
+            (
+                "push([1,2,3,4], 5)".to_string(),
+                evaluation::object::Object::Array(evaluation::object::Array {
+                    elements: vec![
+                        evaluation::object::Object::Integer(evaluation::object::Integer {
+                            value: 1,
+                        }),
+                        evaluation::object::Object::Integer(evaluation::object::Integer {
+                            value: 2,
+                        }),
+                        evaluation::object::Object::Integer(evaluation::object::Integer {
+                            value: 3,
+                        }),
+                        evaluation::object::Object::Integer(evaluation::object::Integer {
+                            value: 4,
+                        }),
+                        evaluation::object::Object::Integer(evaluation::object::Integer {
+                            value: 5,
+                        }),
+                    ],
+                }),
+            ),
+        ];
 
         for (expression, result) in pairs {
             let evaled = run_eval(expression);

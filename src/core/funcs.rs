@@ -16,6 +16,7 @@ lazy_static! {
         ("first".to_string(), 1),
         ("last".to_string(), 1),
         ("rest".to_string(), 1),
+        ("push".to_string(), 2),
     ]
     .iter()
     .cloned()
@@ -37,6 +38,9 @@ pub fn call(function_name: FunctionName, args: Vec<object::Object>) -> object::O
         }
         "rest" if Some(&(args.len() as u8)) == CORE_REGISTRY.get(&function_name) => {
             rest_(args[0].clone())
+        }
+        "push" if Some(&(args.len() as u8)) == CORE_REGISTRY.get(&function_name) => {
+            push_(args[0].clone(), args[1].clone())
         }
         _ => new_error(format!(
             "wrong number of arguments: got={}, expected={}",
@@ -98,8 +102,22 @@ pub fn rest_(arr: object::Object) -> object::Object {
             let elements = arr.elements.clone().into_iter().skip(1).collect();
             object::Object::Array(object::Array { elements })
         }
-        _ => new_error(format!(
+        _ =>new_error(format!(
             "argument to `rest` must be array, got {}",
+            arr.object_type()
+        )),
+    }
+}
+
+pub fn push_(arr: object::Object, elem: object::Object) -> object::Object {
+    match arr {
+        object::Object::Array(arr) => {
+            let mut new_arr = arr.clone();
+            new_arr.elements.push(elem);
+            object::Object::Array(new_arr)
+        },
+        _ => new_error(format!(
+            "argument to `push` must be array, got {}",
             arr.object_type()
         )),
     }
