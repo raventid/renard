@@ -26,7 +26,7 @@ This project has nothing to do with Clojure programming language. Name clojurium
 - [ ] Friendly error messages
 
 ## Intro
-```
+```java
 // Bindings
 let a = 10;
 let b = 20;
