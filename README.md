@@ -10,8 +10,8 @@ This project has nothing to do with Clojure programming language. Name clojurium
 ## Roadmap
 - [x] Lexer
 - [x] Parser
-- [ ] Simple Interpreter
-- [ ] REPL
+- [x] Simple Interpreter
+- [x] REPL
 - [ ] Super basic standard library
 - [ ] Virtual Machine with bytecode
 - [ ] Low pause GC
