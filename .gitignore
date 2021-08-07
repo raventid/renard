@@ -2,6 +2,7 @@
 *.o
 *.a
 *.so
+.DS_Store
 
 # Text editor artefacts
 *.swp
