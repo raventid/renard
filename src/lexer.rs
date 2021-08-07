@@ -270,7 +270,7 @@ mod tests {
     }
 
     #[test]
-    fn test_next_token_clojurium_snippet() {
+    fn test_next_token_renard_snippet() {
         let input = r###"
           let five = 5;
           let ten = 10;

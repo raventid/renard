@@ -176,7 +176,7 @@ impl fmt::Display for Expression {
 }
 
 // Let statement.
-// The way to introduce binding in Clojurium.
+// The way to introduce binding in Renard.
 #[derive(Debug, Clone)]
 pub struct LetStatement {
     pub token: Token,

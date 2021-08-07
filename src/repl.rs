@@ -6,7 +6,7 @@ use crate::evaluation::object::ObjectT;
 use std::io::{stdin, stdout, Write};
 use std::collections::HashMap;
 
-const PROMPT: &str = "clojurium $ ";
+const PROMPT: &str = "renard $ ";
 
 pub fn start() {
     let mut env = environment::Environment::new();

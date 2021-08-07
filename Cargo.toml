@@ -1,5 +1,5 @@
 [package]
-name = "clojurium"
+name = "renard"
 version = "0.1.0"
 authors = ["Julian Pokrovsky <juliankul@gmail.com>"]
 edition = "2018"
