@@ -1,6 +1,6 @@
 # Renard
 
-![alt text](https://github.com/raventid/renard/blob/master/misc/logo.png "renard language")
+![alt text](https://raw.githubusercontent.com/raventid/renard/master/misc/logo.png "renard language")
 
 Simple programming language with first class functions.
 
