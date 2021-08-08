@@ -44,7 +44,7 @@ fn precedence_by_token_type(token_type: &token::TokenType) -> u8 {
 // https://users.rust-lang.org/t/is-it-possible-to-implement-debug-for-fn-type/14824
 
 // Greeting to the master of functinal Rust - mighty @raventid
-type PrefixParseFnAlias = Fn(&mut Parser) -> token::Expression + 'static;
+type PrefixParseFnAlias = dyn Fn(&mut Parser) -> token::Expression + 'static;
 
 pub struct PrefixParseFn(Box<PrefixParseFnAlias>);
 impl fmt::Debug for PrefixParseFn {
@@ -53,7 +53,7 @@ impl fmt::Debug for PrefixParseFn {
     }
 }
 
-type InfixParseFnAlias = Fn(&mut Parser, token::Expression) -> token::Expression + 'static;
+type InfixParseFnAlias = dyn Fn(&mut Parser, token::Expression) -> token::Expression + 'static;
 
 pub struct InfixParseFn(Box<InfixParseFnAlias>);
 impl fmt::Debug for InfixParseFn {
