@@ -17,7 +17,7 @@ Simple programming language with first class functions.
 - [ ] Advanced concurrency (structured concurrency)
 - [ ] Runtime optimizations
 - [ ] Standard library, tailored for network applications
-- [ ] Find a better name
+- [x] Find a better name
 - [ ] Easy modal execution (REPL(interpreter), VM, AOT)
 - [ ] Basic runtime optimizations (TCO, DCE)
 - [ ] Friendly error messages
