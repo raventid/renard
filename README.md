@@ -1,8 +1,8 @@
-# Renard
-
 ![alt text](https://raw.githubusercontent.com/raventid/renard/master/misc/logo.png "renard language")
 
 Simple programming language with first class functions.
+
+# Readme
 
 ## Roadmap
 - [x] Lexer
